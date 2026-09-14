@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: "Zircon Labs - Polymarket Trading Bots",
@@ -25,6 +26,7 @@ export default function RootLayout({
             <Footer />
           </div>
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
