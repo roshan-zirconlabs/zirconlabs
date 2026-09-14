@@ -1,11 +1,21 @@
 import axios from "axios";
-import { ClobClient, Side, OrderType } from "@polymarket/clob-client";
+import { isAddress } from "viem";
 
 export const HOST = "https://clob.polymarket.com";
 export const DATA_API_BASE = "https://data-api.polymarket.com";
 export const GAMMA_API_BASE = "https://gamma-api.polymarket.com";
 export const CHAIN_ID = 137;
+// Legacy compatibility constant for paper-data callers. Managed accounts do
+// not select a signature type in the user interface.
 export const SIGNATURE_TYPE = 2;
+
+export type PolymarketPosition = {
+  asset: string;
+  conditionId: string | null;
+  title: string | null;
+  size: number;
+  avgPrice: number;
+};
 
 const parseArray = <T>(value: unknown, mapper: (item: unknown) => T): T[] => {
   if (!value) return [];
@@ -225,10 +235,64 @@ export async function getActualPosition(
   return null;
 }
 
+/**
+ * Read the complete set of positions for a Polymarket funder address.
+ *
+ * This endpoint is public and intentionally accepts an injected fetcher so
+ * callers can test the response boundary without mocking axios globally.
+ * It never accepts credentials and returns null on malformed/upstream data so
+ * a caller cannot mistake an unavailable response for an empty portfolio.
+ */
+export async function getCurrentPositions(
+  funderAddress: string,
+  fetcher: typeof fetch = fetch,
+): Promise<PolymarketPosition[] | null> {
+  if (!isAddress(funderAddress) || /^0x0{40}$/i.test(funderAddress)) return null;
+
+  const url = new URL(`${DATA_API_BASE}/positions`);
+  url.searchParams.set("user", funderAddress);
+
+  try {
+    const response = await fetcher(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) return null;
+
+    const payload: unknown = await response.json();
+    if (!Array.isArray(payload)) return null;
+
+    return payload.flatMap((item): PolymarketPosition[] => {
+      if (!item || typeof item !== "object") return [];
+      const raw = item as Record<string, unknown>;
+      const asset = raw.asset ?? raw.token_id ?? raw.tokenId;
+      if (typeof asset !== "string" || asset.trim() === "") return [];
+
+      const size = Number(raw.size ?? raw.shares ?? 0);
+      const avgPrice = Number(raw.avgPrice ?? raw.avg_price ?? 0);
+      if (!Number.isFinite(size) || !Number.isFinite(avgPrice)) return [];
+
+      const conditionId = raw.conditionId ?? raw.condition_id;
+      const title = raw.title ?? raw.question;
+      return [{
+        asset: asset.trim(),
+        conditionId: typeof conditionId === "string" ? conditionId : null,
+        title: typeof title === "string" ? title : null,
+        size,
+        avgPrice,
+      }];
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function placeOrder(
-  client: ClobClient | null,
+  client: { createAndPostMarketOrder: (order: { tokenID: string; amount: number; side: "BUY" | "SELL" }, options?: unknown, orderType?: string) => Promise<unknown> } | null,
   tokenId: string,
-  side: Side,
+  side: "BUY" | "SELL",
   amount: number,
   maxRetries: number = 3,
   isTestMode: boolean = false,
@@ -250,7 +314,7 @@ export async function placeOrder(
       const response = await client.createAndPostMarketOrder(
         { tokenID: tokenId, amount, side },
         undefined,
-        OrderType.FAK,
+        "FAK",
       );
 
       if (

@@ -130,9 +130,10 @@ function BotEditorInner({
   }, [botId, nodes, edges, name, setSaving, setDirty, toast]);
 
   const runOnce = useCallback(async () => {
+    if (!confirm("Run this published workflow on KeeperHub? Configured actions may spend real organization funds.")) return;
     setRunning(true);
     try {
-      const res = await fetch(`/api/bots/${botId}/run`, { method: "POST" });
+      const res = await fetch(`/api/bots/${botId}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmLive: true }) });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(json?.error || json?.message || "Run failed");

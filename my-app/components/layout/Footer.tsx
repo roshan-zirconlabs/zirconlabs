@@ -1,47 +1,35 @@
 "use client";
-import Image from "next/image";
+
 import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-[var(--line)] bg-[var(--white)]">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-        <div className="flex items-center gap-2">
-          <Image
-            src="/logo.png"
-            alt="Arbitrax"
-            width={80}
-            height={24}
-            className="h-6 w-auto object-contain opacity-70"
-          />
-          <span className="text-[12px] text-[var(--muted)]">
-            &copy; {new Date().getFullYear()}
+    <footer className="border-t border-purple-100 bg-white/70 backdrop-blur-md py-6">
+      <div className="mx-auto flex max-w-7xl flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-6 w-6 items-center justify-center rounded bg-gradient-to-br from-violet-600 to-pink-500 text-white font-bold font-mono text-[10px] shadow-xs">
+            ZL
+          </div>
+          <span className="font-bold tracking-tight text-slate-800 text-xs font-mono">
+            ZIRCON LABS
+          </span>
+          <span className="text-[11px] text-slate-400">
+            &copy; {new Date().getFullYear()} · Autonomous Polymarket Workflows via KeeperHub
           </span>
         </div>
-        <nav className="flex items-center gap-4 text-[12px]">
-          <Link
-            href="/markets"
-            className="text-[var(--muted)] hover:text-[var(--ink)] transition"
-          >
-            Markets
-          </Link>
-          <Link
-            href="/backtest"
-            className="text-[var(--muted)] hover:text-[var(--ink)] transition"
-          >
-            Backtest
-          </Link>
-          <Link
-            href="/dashboard"
-            className="text-[var(--muted)] hover:text-[var(--ink)] transition"
-          >
+
+        <nav className="flex items-center gap-5 text-xs text-slate-500">
+          <Link href="/dashboard" className="hover:text-purple-700 transition">
             Dashboard
           </Link>
-          <Link
-            href="/billing"
-            className="text-[var(--muted)] hover:text-[var(--ink)] transition"
-          >
-            Pricing
+          <Link href="/bots" className="hover:text-purple-700 transition">
+            Bots
+          </Link>
+          <Link href="/markets" className="hover:text-purple-700 transition">
+            Markets
+          </Link>
+          <Link href="/billing" className="hover:text-purple-700 transition">
+            Billing
           </Link>
         </nav>
       </div>

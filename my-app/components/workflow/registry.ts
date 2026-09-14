@@ -44,6 +44,9 @@ export type ActionDef = {
   iconName: ActionIconName;
   category: "polymarket" | "logic" | "io";
   fields: FieldDef[];
+  /** Where this definition came from and whether it can be published today. */
+  source?: "keeperhub" | "zircon";
+  availability?: "live" | "paper";
 };
 
 export type ActionIconName =
@@ -72,7 +75,7 @@ export const TRIGGERS: TriggerDef[] = [
     iconName: "Clock",
     fields: [
       {
-        key: "cron",
+        key: "scheduleCron",
         label: "Cron expression",
         kind: "cron",
         placeholder: "*/5 * * * *",

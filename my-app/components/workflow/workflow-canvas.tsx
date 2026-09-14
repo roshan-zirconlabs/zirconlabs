@@ -40,7 +40,7 @@ const nodeTypes = {
 function CanvasInner() {
   const [nodes, setNodes] = useAtom(nodesAtom);
   const [edges, setEdges] = useAtom(edgesAtom);
-  const [selectedId, setSelectedId] = useAtom(selectedNodeIdAtom);
+  const [, setSelectedId] = useAtom(selectedNodeIdAtom);
   const [, setDirty] = useAtom(isDirtyAtom);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSourceId, setPickerSourceId] = useState<string | null>(null);
@@ -103,8 +103,8 @@ function CanvasInner() {
         position: { x: 0, y: 0 },
         data: {
           type: "action",
-          label: "",
-          description: "",
+          label: def.label,
+          description: def.description,
           status: "idle",
           config: {
             integrationType: def.integrationType,

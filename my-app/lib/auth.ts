@@ -1,63 +1,43 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { prisma } from "./prisma";
 
 declare module "next-auth" {
   interface Session {
-    user: {
-      id: string;
-      email?: string | null;
-      name?: string | null;
-      image?: string | null;
-    };
+    user: { id: string; email?: string | null; name?: string | null; image?: string | null };
   }
 }
 
+// Email alone is not proof of identity. Accounts here own automation credentials.
+// Google is the only OAuth provider and signIn below additionally requires its
+// verified-email claim. Enabling linking here lets users who were created by the
+// former email/demo flow attach their real Google identity without allowing an
+// unverified provider to claim an existing workspace.
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-  ],
+  adapter: PrismaAdapter(prisma),
+  providers: process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ? [Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      allowDangerousEmailAccountLinking: true,
+    })]
+    : [],
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt" },
   callbacks: {
+    signIn({ account, profile }) {
+      return account?.provider === "google" && profile?.email_verified === true;
+    },
     async jwt({ token, user }) {
-      if (user) {
-        token.userId = user.id;
-      }
-      return token;
+      if (user) { token.userId = user.id; token.authVersion = 2; }
+      return token.authVersion === 2 ? token : null;
     },
     async session({ session, token }) {
-      if (token.userId) {
-        session.user.id = token.userId as string;
-      }
+      // Legacy email-only sessions must not retain access after this upgrade.
+      session.user.id = typeof token.userId === "string" ? token.userId : "";
       return session;
     },
-    async signIn({ user, account }) {
-      // Phase 2: persistence moves to Nest backend.
-      // Keep sign-in non-blocking; backend can upsert user/subscription asynchronously.
-      if (account?.provider === "google") {
-        const base = process.env.NEXT_PUBLIC_BACKEND_URL;
-        if (base) {
-          try {
-            await fetch(`${base.replace(/\/$/, "")}/v1/auth/on-sign-in`, {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({
-                email: user.email,
-                name: user.name,
-                image: user.image,
-              }),
-            });
-          } catch {
-            // ignore - do not block sign-in
-          }
-        }
-      }
-      return true;
-    },
   },
-  pages: {
-    signIn: "/auth/sign-in",
-  },
+  pages: { signIn: "/auth/sign-in" },
 });

@@ -1,23 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-
+import { prisma } from "@/lib/prisma";
+import { stripe } from "@/lib/stripe";
 export async function POST() {
   const session = await auth();
-  if (!session?.user?.email)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const base = process.env.NEXT_PUBLIC_BACKEND_URL;
-  if (!base) {
-    return NextResponse.json(
-      { error: "Missing NEXT_PUBLIC_BACKEND_URL" },
-      { status: 500 },
-    );
-  }
-
-  const res = await fetch(`${base.replace(/\/$/, "")}/v1/billing/portal`, {
-    method: "POST",
-    headers: { "x-user-email": session.user.email },
-  });
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  if (!session?.user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!process.env.APP_URL || !process.env.STRIPE_SECRET_KEY) return NextResponse.json({ error: "Billing is not configured." }, { status: 503 });
+  const sub = await prisma.subscription.findUnique({ where: { userId: session.user.id } });
+  if (!sub?.stripeCustomerId) return NextResponse.json({ error: "No billing account exists yet." }, { status: 404 });
+  try {
+    const portal = await stripe.billingPortal.sessions.create({ customer: sub.stripeCustomerId, return_url: process.env.APP_URL.replace(/\/$/, "") + "/billing" });
+    return NextResponse.json({ url: portal.url });
+  } catch { return NextResponse.json({ error: "Billing portal unavailable. Retry shortly." }, { status: 502 }); }
 }

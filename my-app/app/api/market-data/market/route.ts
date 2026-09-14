@@ -83,24 +83,6 @@ export async function GET(req: NextRequest) {
   if (!m)
     return NextResponse.json({ error: "Market not found" }, { status: 404 });
 
-  // If index file: fetch yesTokenHistory live from backend using tokenId.
-  if (!m.yesTokenHistory) {
-    const tokenId = m.tokens?.yes?.tokenId;
-    const base = process.env.NEXT_PUBLIC_BACKEND_URL;
-    if (base && tokenId && m.startTs && m.endTs) {
-      const res = await fetch(
-        `${base.replace(/\/$/, "")}/v1/markets/prices-history?tokenId=${encodeURIComponent(
-          tokenId,
-        )}&startTs=${m.startTs}&endTs=${m.endTs}`,
-        { cache: "no-store" },
-      );
-      if (res.ok) {
-        const json = await res.json();
-        m.yesTokenHistory = json.yesTokenHistory ?? null;
-      }
-    }
-  }
-
   return NextResponse.json({
     generatedAt: data.generatedAt,
     timeframe: data.timeframe,

@@ -5,6 +5,7 @@ import { Activity, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Button from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { useHostedCatalog } from "./hosted-catalog";
 import {
   activeMarketSlug,
   bitstampPair,
@@ -26,6 +27,7 @@ import {
 } from "./registry";
 
 export default function NodeConfigPanel() {
+  const catalog = useHostedCatalog();
   const [nodes, setNodes] = useAtom(nodesAtom);
   const [edges, setEdges] = useAtom(edgesAtom);
   const [selectedId, setSelectedId] = useAtom(selectedNodeIdAtom);
@@ -157,6 +159,7 @@ export default function NodeConfigPanel() {
   const isTrigger = selected.data.type === "trigger";
   let fields: FieldDef[] = [];
   let typeLabel = "";
+  let paperOnly = false;
 
   if (isTrigger) {
     const t = (selected.data.config?.triggerType as string) ?? "Manual";
@@ -166,9 +169,10 @@ export default function NodeConfigPanel() {
   } else {
     const it = selected.data.config?.integrationType as string | undefined;
     const at = selected.data.config?.actionType as string | undefined;
-    const def = it && at ? findActionByConfig(it, at) : undefined;
+    const def = catalog.data?.find(a => a.actionType === at) ?? (it && at ? findActionByConfig(it, at) : undefined);
     fields = def?.fields ?? [];
     typeLabel = def?.label ?? "Action";
+    paperOnly = def?.availability === "paper" || def?.source === "zircon";
   }
 
   return (
@@ -201,6 +205,12 @@ export default function NodeConfigPanel() {
         </Field>
 
         <ActiveMarketPreview config={selected.data.config ?? {}} />
+
+        {!isTrigger && paperOnly && (
+          <div role="status" className="mb-4 rounded-[var(--r)] border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+            Paper demo only. This local Polymarket action is not a KeeperHub-hosted action and cannot be published for live execution yet.
+          </div>
+        )}
 
         {isTrigger && (
           <Field label="Trigger type">

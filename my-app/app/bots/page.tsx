@@ -3,18 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import Button from "@/components/ui/button";
-import Input from "@/components/ui/input";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import Skeleton from "@/components/ui/skeleton";
+import Link from "next/link";
+import { Bot, Plus, ArrowRight, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
-type Bot = {
+type BotItem = {
   id: string;
   name: string;
   status: string;
@@ -29,13 +22,16 @@ export default function BotsPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [bots, setBots] = useState<Bot[]>([]);
+  const [bots, setBots] = useState<BotItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (status !== "authenticated") {
+      if (status === "unauthenticated") router.push("/auth/sign-in");
+      return;
+    }
     let alive = true;
     (async () => {
       try {
@@ -56,14 +52,12 @@ export default function BotsPage() {
     return () => {
       alive = false;
     };
-  }, [status, toast]);
+  }, [status, toast, router]);
 
-  async function createBot() {
+  async function createBot(e: React.FormEvent) {
+    e.preventDefault();
     const trimmed = name.trim();
-    if (!trimmed) {
-      toast({ variant: "error", title: "Name required" });
-      return;
-    }
+    if (!trimmed) return;
     setBusy(true);
     try {
       const res = await fetch("/api/bots", {
@@ -73,100 +67,132 @@ export default function BotsPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        throw new Error(json?.error || json?.message || "Failed");
+        throw new Error(json?.error || "Failed to create bot");
       }
-      const id = json?.bot?.id ?? json?.id;
-      if (!id) throw new Error("No bot id returned");
+      const id = json?.id || json?.bot?.id;
+      if (!id) throw new Error("No bot ID returned");
       router.push(`/bots/${id}`);
-    } catch (e) {
+    } catch (e: any) {
       toast({
         variant: "error",
-        title: "Could not create bot",
-        description: String(e),
+        title: "Creation failed",
+        description: e.message || String(e),
       });
+    } finally {
       setBusy(false);
     }
   }
 
-  if (status === "loading" || (status === "authenticated" && loading)) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-        <Skeleton className="h-8 w-48 mb-4" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-    );
-  }
-
-  if (status === "unauthenticated") {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign in to build bots</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold mb-1">Your bots</h1>
-        <p className="text-sm text-[var(--muted)]">
-          Each bot is a KeeperHub workflow. Click Create — you&apos;ll be
-          dropped into the KeeperHub editor to drag together your strategy.
-        </p>
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-purple-100/80 pb-5">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Automated Bots
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Create a KeeperHub workflow, visually configure logic nodes, and monitor real execution telemetry.
+          </p>
+        </div>
+
+        <form onSubmit={createBot} className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="New bot name..."
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-purple-400 focus:outline-none shadow-2xs"
+          />
+          <button
+            type="submit"
+            disabled={busy || !name.trim()}
+            className="inline-flex items-center gap-1.5 rounded-xl cosmic-btn-primary px-4 py-2 text-xs font-semibold shadow-xs disabled:opacity-50 whitespace-nowrap"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Create Bot
+          </button>
+        </form>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-base mb-1">Create a new bot</CardTitle>
-          <CardDescription className="text-xs mb-3">
-            ZLabs creates a fresh KeeperHub workflow and opens its editor in a
-            new tab. Build the rest there.
-          </CardDescription>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Bot name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={busy}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") createBot();
-              }}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-44 rounded-xl border border-purple-100 bg-white animate-pulse shadow-xs"
             />
-            <Button onClick={createBot} disabled={busy || !name.trim()}>
-              {busy ? "Creating…" : "Create"}
-            </Button>
+          ))}
+        </div>
+      ) : bots.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-purple-200 bg-white/70 p-12 text-center shadow-xs">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-50 border border-purple-200 text-purple-700 mb-3 shadow-2xs">
+            <Bot className="h-6 w-6" />
           </div>
-        </CardHeader>
-      </Card>
-
-      {bots.length === 0 ? (
-        <p className="text-sm text-[var(--muted)]">
-          No bots yet. Create your first one above.
-        </p>
+          <h3 className="text-base font-semibold text-slate-800">
+            No bots yet
+          </h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+            Enter a bot name above to provision your first KeeperHub automation workflow.
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {bots.map((b) => (
-            <Card
+            <div
               key={b.id}
-              className="cursor-pointer hover:border-[var(--ink2)] transition"
-              onClick={() => router.push(`/bots/${b.id}`)}
+              className="rounded-xl border border-purple-100 bg-white p-5 flex flex-col justify-between hover:border-purple-300 hover:shadow-md transition shadow-xs"
             >
-              <CardHeader>
-                <div className="flex items-center justify-between mb-1">
-                  <CardTitle className="text-base">{b.name}</CardTitle>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-[var(--line)] text-[var(--muted)]">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 border border-purple-200 text-purple-700 shadow-2xs">
+                      <Bot className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        {b.name}
+                      </h3>
+                      <div className="text-[10px] font-mono text-slate-400">
+                        ID: {b.id.slice(0, 10)}...
+                      </div>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold border ${
+                      b.status === "ACTIVE"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-slate-100 text-slate-600 border-slate-200"
+                    }`}
+                  >
                     {b.status}
                   </span>
                 </div>
-                <CardDescription className="text-xs">
-                  {b._count?.trades ?? 0} runs
-                </CardDescription>
-              </CardHeader>
-            </Card>
+
+                <div className="mt-4 text-xs font-mono bg-purple-50/40 p-2.5 rounded-lg border border-purple-100 flex items-center justify-between text-slate-500">
+                  <span>Strategy Trades:</span>
+                  <span className="text-slate-900 font-semibold">
+                    {b._count?.trades ?? 0}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-5 pt-3 border-t border-purple-100 flex items-center justify-between gap-2">
+                <Link
+                  href={`/bots/${b.id}`}
+                  className="text-xs text-slate-500 hover:text-purple-700 font-medium transition"
+                >
+                  View Details & Audit
+                </Link>
+                <Link
+                  href={`/bots/${b.id}/edit`}
+                  className="inline-flex items-center gap-1 rounded-lg bg-purple-50 border border-purple-200 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 transition shadow-2xs"
+                >
+                  Visual Editor
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </div>
           ))}
         </div>
       )}

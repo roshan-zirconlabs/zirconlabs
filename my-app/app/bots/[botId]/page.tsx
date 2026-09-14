@@ -3,15 +3,19 @@
 import { useEffect, useState, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import Button from "@/components/ui/button";
+import Link from "next/link";
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import Skeleton from "@/components/ui/skeleton";
-import { useToast } from "@/components/ui/toast";
+  ArrowLeft,
+  Bot,
+  ExternalLink,
+  Play,
+  Trash2,
+  Copy,
+  Check,
+  Globe,
+  Code2,
+} from "lucide-react";
+import ExecutionAuditTrail from "@/components/bots/execution-audit-trail";
 
 type BotResponse = {
   id: string;
@@ -31,124 +35,164 @@ export default function BotDetailPage({
   const { botId } = use(params);
   const { status } = useSession();
   const router = useRouter();
-  const { toast } = useToast();
 
   const [bot, setBot] = useState<BotResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/bots/${botId}`);
-    if (!res.ok) {
-      toast({ variant: "error", title: "Bot not found" });
-      router.push("/bots");
-      return;
+    try {
+      const res = await fetch(`/api/bots/${botId}`);
+      if (!res.ok) {
+        router.push("/bots");
+        return;
+      }
+      setBot(await res.json());
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setBot(await res.json());
-    setLoading(false);
-  }, [botId, toast, router]);
+  }, [botId, router]);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
-    load();
-  }, [status, load]);
+    if (status === "authenticated") load();
+    else if (status === "unauthenticated") router.push("/auth/sign-in");
+  }, [status, load, router]);
 
   async function deleteBot() {
     if (
       !confirm(
-        "Delete this bot? Its KeeperHub workflow will also be removed.",
+        "Delete this bot? Its linked KeeperHub workflow will also be removed.",
       )
     )
       return;
     const res = await fetch(`/api/bots/${botId}`, { method: "DELETE" });
     if (res.ok) {
-      toast({ variant: "success", title: "Bot deleted" });
-      router.push("/bots");
+      router.push("/dashboard");
     }
   }
 
   function copy(text: string) {
     navigator.clipboard.writeText(text);
-    toast({ variant: "success", title: "Copied" });
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
-  if (status === "loading" || loading) {
+  if (loading || !bot) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <Skeleton className="h-8 w-48 mb-4" />
-        <Skeleton className="h-40 w-full" />
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <div className="h-8 w-48 bg-purple-100/70 rounded-xl animate-pulse mb-4" />
+        <div className="h-44 w-full bg-purple-50/60 rounded-2xl animate-pulse border border-purple-100" />
       </div>
     );
   }
-  if (!bot) return null;
 
   const { editorUrl, webhookUrl } = bot;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold">{bot.name}</h1>
-          <p className="text-xs text-[var(--muted)] mt-1">
-            KeeperHub workflow:{" "}
-            <code className="text-[10px]">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 space-y-6">
+      {/* Back button & Title */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-purple-100 pb-5">
+        <div className="space-y-1">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-900 transition mb-2 font-medium"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Dashboard
+          </Link>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              {bot.name}
+            </h1>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${
+                bot.status === "ACTIVE"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-slate-100 text-slate-600 border-slate-200"
+              }`}
+            >
+              {bot.status}
+            </span>
+          </div>
+          <p className="text-xs font-mono text-slate-500">
+            KeeperHub Workflow ID:{" "}
+            <span className="text-slate-800 font-semibold">
               {bot.keeperhubWorkflowId ?? "—"}
-            </code>
+            </span>
           </p>
         </div>
-        <Button variant="danger" size="sm" onClick={deleteBot}>
-          Delete
-        </Button>
+
+        <div className="flex items-center gap-2.5">
+          <Link
+            href={`/bots/${botId}/edit`}
+            className="cosmic-btn-primary inline-flex items-center gap-2 text-xs font-semibold px-4 py-2"
+          >
+            <Code2 className="h-4 w-4" />
+            Visual Strategy Editor
+          </Link>
+          {editorUrl ? (
+            <a
+              href={editorUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-purple-50 hover:border-purple-300 transition shadow-xs"
+            >
+              <ExternalLink className="h-3.5 w-3.5 text-purple-600" />
+              Open in KH
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={deleteBot}
+            className="p-2 rounded-xl border border-rose-200 bg-white text-rose-500 hover:bg-rose-50 hover:border-rose-300 transition shadow-xs cursor-pointer"
+            title="Delete Bot"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      <Card className="mb-4">
-        <CardHeader>
-          <CardTitle className="text-base mb-1">Workflow</CardTitle>
-          <CardDescription className="text-xs mb-3">
-            Drag triggers and actions to build your bot. Save when you&apos;re
-            done — the bot picks up your changes on its next run.
-          </CardDescription>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="primary"
-              onClick={() => router.push(`/bots/${botId}/edit`)}
-            >
-              Open editor →
-            </Button>
-            {editorUrl && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(editorUrl, "_blank")}
-              >
-                Advanced (KeeperHub)
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base mb-1">Trigger URL</CardTitle>
-          <CardDescription className="text-xs mb-2">
-            POST any JSON to this URL to fire the workflow. Use it from
-            TradingView, a script, or anywhere else.
-          </CardDescription>
-          <code className="block text-[10px] bg-[var(--line2)] text-[var(--ink)] p-2 rounded break-all">
-            {webhookUrl ?? "—"}
+      {/* Trigger Webhook URL Card */}
+      <div className="rounded-2xl border border-purple-100 bg-white p-5 shadow-xs">
+        <div className="flex items-center gap-2 mb-2">
+          <Globe className="h-4 w-4 text-purple-600" />
+          <h3 className="text-sm font-semibold text-slate-900">
+            External Trigger Webhook URL
+          </h3>
+        </div>
+        <p className="text-xs text-slate-500 mb-3">
+          POST any JSON payload to this endpoint to execute the bot workflow on demand. Works directly with TradingView webhook alerts or cron pingers.
+        </p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 rounded-xl border border-purple-100 bg-purple-50/50 p-2.5 text-xs font-mono text-purple-700 truncate select-all">
+            {webhookUrl || "Webhook URL not yet generated"}
           </code>
           {webhookUrl && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-2"
+            <button
+              type="button"
               onClick={() => copy(webhookUrl)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-700 hover:bg-purple-50 hover:border-purple-300 transition shadow-xs cursor-pointer"
             >
-              Copy
-            </Button>
+              {copied ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="text-emerald-700">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 text-purple-600" />
+                  Copy
+                </>
+              )}
+            </button>
           )}
-        </CardHeader>
-      </Card>
+        </div>
+      </div>
+
+      {/* Execution Audit Trail Viewer */}
+      <ExecutionAuditTrail botId={botId} />
     </div>
   );
 }

@@ -11,22 +11,23 @@ type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const base =
-  "inline-flex items-center justify-center gap-1.5 rounded-[var(--r)] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]/20 disabled:opacity-40 disabled:pointer-events-none cursor-pointer select-none";
+  "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/40 disabled:opacity-40 disabled:pointer-events-none cursor-pointer select-none";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-[var(--ink)] text-[var(--white)] hover:bg-[var(--ink2)] shadow-[var(--shadow-sm)]",
-  secondary: "bg-[var(--line2)] text-[var(--ink)] hover:bg-[var(--line)]",
+    "bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 text-white font-semibold hover:opacity-95 shadow-md shadow-purple-500/25 active:scale-[0.98]",
+  secondary:
+    "border border-purple-200 bg-purple-50/70 text-purple-900 hover:bg-purple-100 hover:border-purple-300 font-medium shadow-xs",
   outline:
-    "border border-[var(--line)] text-[var(--ink)] hover:bg-[var(--line2)]",
-  ghost: "text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--line2)]",
-  danger: "bg-[var(--rose)] text-white hover:bg-[var(--rose)]/90",
+    "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-xs",
+  ghost: "text-slate-600 hover:text-purple-900 hover:bg-purple-50/70",
+  danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-md shadow-rose-500/20",
 };
 
 const sizes: Record<Size, string> = {
-  sm: "h-7 px-2.5 text-[12px]",
-  md: "h-8 px-3.5 text-[13px]",
-  lg: "h-9 px-4 text-[13px]",
+  sm: "h-8 px-3 text-xs",
+  md: "h-9 px-4 text-xs",
+  lg: "h-11 px-5 text-sm",
 };
 
 export default function Button({

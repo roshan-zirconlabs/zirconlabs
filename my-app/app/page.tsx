@@ -1,201 +1,212 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowRight, BarChart3, ShieldCheck, Zap, Globe, Cpu } from "lucide-react";
-import Button from "@/components/ui/button";
-import { HeroAnim } from "@/components/ui/hero-anim";
-import { TradeTicker } from "@/components/ui/trade-ticker";
-import { cn } from "@/lib/utils";
+import {
+  ArrowRight,
+  ShieldCheck,
+  Zap,
+  Cpu,
+  Terminal,
+  Sparkles,
+  CheckCircle2,
+  Workflow,
+  BarChart2,
+} from "lucide-react";
 
 const stats = [
-  { label: "Markets Tracked", value: "850+", icon: Globe },
-  { label: "Trades Executed", value: "42.1K", icon: Zap },
-  { label: "Total Volume", value: "$8.4M", icon: BarChart3 },
+  { label: "Execution Engine", value: "KeeperHub v2", desc: "Deterministic SLA" },
+  { label: "Polymarket Windows", value: "15m · 1h · 4h · 1d", desc: "Auto-rotating slugs" },
+  { label: "Default Safety", value: "Paper Simulation", desc: "Risk-free evaluation" },
+  { label: "Strategy Format", value: "Visual & Webhooks", desc: "Zero code required" },
 ];
 
 const features = [
   {
-    title: "Precision Backtesting",
-    description: "Validate strategies against historical order book data with millisecond precision.",
-    icon: BarChart3,
-  },
-  {
-    title: "AI Signal Filtering",
-    description: "Our proprietary ML models filter out low-conviction signals to maximize win rates.",
-    icon: Cpu,
-  },
-  {
-    title: "Secure Custody",
-    description: "Managed and non-custodial wallet options with multi-sig security protocols.",
+    title: "Deterministic Execution",
+    description: "Built on KeeperHub: nonces, private MEV routing, retries with exponential backoff, and full auditable records.",
     icon: ShieldCheck,
+  },
+  {
+    title: "Active-Market Auto Resolution",
+    description: "Never manually paste contract IDs. Zircon Labs floored timestamps automatically resolve the live Polymarket up/down window.",
+    icon: Zap,
+  },
+  {
+    title: "Visual Strategy Builder",
+    description: "Compose multi-condition triggers, price filters, and automated order routing visually on our node canvas.",
+    icon: Workflow,
+  },
+  {
+    title: "Zero Private Key Custody",
+    description: "Full wallet compatibility checks with Polygon Mainnet. Sign standard EIP-712 session allowances directly in your Web3 wallet.",
+    icon: Cpu,
   },
 ];
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--paper)]">
+    <div className="flex flex-col min-h-screen bg-[#fbfaff] text-slate-900 selection:bg-purple-500 selection:text-white">
       {/* ── HERO SECTION ── */}
-      <section className="relative pt-24 pb-20 overflow-hidden border-b border-[var(--line)]">
-        {/* Background Decorative Blob */}
-        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[600px] h-[600px] bg-emerald-100/30 blur-[120px] rounded-full" />
-        <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-indigo-100/30 blur-[120px] rounded-full" />
+      <section className="relative pt-20 pb-20 overflow-hidden border-b border-purple-100/80">
+        {/* Ambient cosmic nebula blurs */}
+        <div className="absolute top-0 right-1/4 -translate-y-1/2 w-[600px] h-[600px] bg-purple-400/15 blur-[140px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 translate-y-1/2 w-[500px] h-[500px] bg-pink-400/15 blur-[140px] rounded-full pointer-events-none" />
 
-        <div className="container mx-auto px-6 relative z-10">
+        <div className="container mx-auto px-6 relative z-10 max-w-6xl">
           <div className="flex flex-col lg:flex-row items-center gap-12">
-            <div className="lg:w-1/2">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 uppercase tracking-widest mb-6">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  Polymarket Intelligence v2.0
+            <div className="lg:w-7/12">
+              <div className="inline-flex items-center gap-2 rounded-full border border-purple-200 bg-purple-50/80 px-3.5 py-1 text-xs font-mono font-medium text-purple-700 mb-6 shadow-xs">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-600"></span>
+                </span>
+                Powered by KeeperHub Engine · Live on Polygon
+              </div>
+
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6 text-slate-900">
+                Automate Polymarket with{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-fuchsia-600 to-indigo-600">
+                  Deterministic Execution.
+                </span>
+              </h1>
+
+              <p className="text-base sm:text-lg text-slate-600 max-w-xl mb-8 leading-relaxed">
+                Build, simulate, and run 24/7 automated bots on Polymarket up/down prediction markets — without manual wallet plumbing, contract hunting, or execution drift.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href="/dashboard"
+                  className="cosmic-btn-primary inline-flex items-center gap-2 px-6 py-3 text-xs font-semibold"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Launch Terminal
+                </Link>
+                <Link
+                  href="/bots"
+                  className="inline-flex items-center gap-2 rounded-xl border border-purple-200 bg-white px-6 py-3 text-xs font-medium text-slate-700 hover:bg-purple-50 hover:text-purple-900 hover:border-purple-300 transition shadow-xs"
+                >
+                  View Bots
+                  <ArrowRight className="h-4 w-4 text-purple-600" />
+                </Link>
+              </div>
+
+              <div className="mt-8 flex items-center gap-6 text-xs text-slate-500 font-mono">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-purple-600" />
+                  No Code Required
                 </div>
-
-                <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6">
-                  <HeroAnim /> <br />
-                  <span className="text-[var(--ink)]">Your Edge on Prediction Markets.</span>
-                </h1>
-
-                <p className="text-lg text-[var(--muted)] max-w-lg mb-8 leading-relaxed">
-                  The ultimate bridge between TradingView strategies and Polymarket execution. 
-                  High-frequency backtesting, real-time webhooks, and institutional-grade risk controls.
-                </p>
-
-                <div className="flex flex-wrap gap-4">
-                  <Link href="/auth/sign-up">
-                    <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200/50 flex items-center gap-2">
-                      Get Started <ArrowRight size={18} />
-                    </Button>
-                  </Link>
-                  <Link href="/dashboard">
-                    <Button size="lg" variant="outline" className="border-emerald-200 bg-white hover:bg-emerald-50 flex items-center gap-2 text-emerald-700">
-                      Open Dashboard
-                    </Button>
-                  </Link>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-purple-600" />
+                  TradingView Ready
                 </div>
-              </motion.div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-purple-600" />
+                  Paper Mode Active
+                </div>
+              </div>
             </div>
 
-            <div className="lg:w-1/2 w-full">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-              >
-                <TradeTicker />
-              </motion.div>
+            {/* Live Visual Terminal Preview */}
+            <div className="lg:w-5/12 w-full">
+              <div className="rounded-2xl border border-purple-100 bg-white p-5 shadow-xl shadow-purple-900/5 font-mono text-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <Terminal className="h-4 w-4 text-purple-600" />
+                    <span className="font-semibold">keeperhub-worker.log</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                    SLA ACTIVE
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-slate-600 text-[11px] leading-relaxed">
+                  <p className="text-slate-400">// Auto-rotating active window resolver</p>
+                  <p>
+                    <span className="text-purple-600 font-semibold">[00:00:00]</span> Target:{" "}
+                    <span className="text-slate-900 font-semibold">btc-updown-15m-1726000000</span>
+                  </p>
+                  <p>
+                    <span className="text-purple-600 font-semibold">[00:00:01]</span> Gamma API Token IDs:{" "}
+                    <span className="text-emerald-600 font-semibold">YES=2149...</span> NO=2150...
+                  </p>
+                  <p>
+                    <span className="text-purple-600 font-semibold">[00:00:02]</span> Strategy Signal:{" "}
+                    <span className="text-purple-700 font-bold">UP (Confidence 0.92)</span>
+                  </p>
+                  <p>
+                    <span className="text-purple-600 font-semibold">[00:00:03]</span> Order Routed:{" "}
+                    <span className="text-slate-900 font-semibold">10.00 USDC @ 0.52 (FILLED)</span>
+                  </p>
+                  <p className="text-emerald-600 font-semibold">
+                    ✔ Mirror Event posted to Zircon Labs /ingest/trade
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-purple-100 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>Execution Time: 395ms</span>
+                  <span>MEV Protection: Enabled</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── STATS SECTION ── */}
-      <section className="bg-white border-b border-[var(--line)]">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x border-x border-[var(--line)]">
-            {stats.map((stat, idx) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
-                className="py-10 flex flex-col items-center text-center"
-              >
-                <div className="mb-2 p-2 rounded-lg bg-[var(--line2)] text-emerald-600">
-                  <stat.icon size={24} />
+      <section className="border-b border-purple-100/80 bg-purple-50/40">
+        <div className="container mx-auto px-6 py-8 max-w-6xl">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {stats.map((s, i) => (
+              <div key={i} className="space-y-1">
+                <div className="text-xs text-slate-400 uppercase tracking-wider font-mono">
+                  {s.label}
                 </div>
-                <div className="text-3xl font-bold tracking-tight text-[var(--ink)] mb-1">
-                  {stat.value}
+                <div className="text-lg sm:text-xl font-bold font-mono text-slate-900">
+                  {s.value}
                 </div>
-                <div className="text-[12px] uppercase font-semibold text-[var(--muted2)] tracking-widest">
-                  {stat.label}
-                </div>
-              </motion.div>
+                <div className="text-xs text-purple-600 font-medium">{s.desc}</div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── FEATURES GRID ── */}
-      <section className="py-24 bg-[var(--paper)]">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-4 tracking-tight">Institutional-Grade Infrastructure</h2>
-            <p className="text-[var(--muted)] text-lg max-w-2xl mx-auto">
-              Built for speed, reliability, and precision. We handle the complexity so you can focus on the strategy.
+      {/* ── FEATURES SECTION ── */}
+      <section className="py-20 border-b border-purple-100/80 bg-[#fbfaff]">
+        <div className="container mx-auto px-6 max-w-6xl space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+              Why Zircon Labs + KeeperHub?
+            </h2>
+            <p className="text-sm text-slate-600">
+              Traditional trading bots suffer from probabilistic reinterpretation and brittle infrastructure. Zircon Labs guarantees deterministic value execution every single window.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {features.map((feature, idx) => (
-              <motion.div
-                key={feature.title}
-                whileHover={{ y: -8 }}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
-                className="glass p-8 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300"
-              >
-                <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 mb-6">
-                  <feature.icon size={24} />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {features.map((f, i) => {
+              const Icon = f.icon;
+              return (
+                <div
+                  key={i}
+                  className="rounded-2xl border border-purple-100 bg-white p-6 space-y-3 hover:border-purple-200 hover:shadow-md transition"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 border border-purple-200 text-purple-600">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-base font-semibold text-slate-900">
+                    {f.title}
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {f.description}
+                  </p>
                 </div>
-                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                <p className="text-[var(--muted)] leading-relaxed">
-                  {feature.description}
-                </p>
-              </motion.div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
-
-      {/* ── CALL TO ACTION ── */}
-      <section className="py-20 bg-emerald-600 relative overflow-hidden">
-        <div className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 w-96 h-96 border-[40px] border-emerald-500/30 rounded-full" />
-        <div className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2 w-80 h-80 border-[30px] border-emerald-500/30 rounded-full" />
-        
-        <div className="container mx-auto px-6 relative z-10 text-center">
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-6">Ready to scale your prediction strategy?</h2>
-          <p className="text-emerald-50 text-lg mb-10 max-w-xl mx-auto">
-            Join elite traders using ZLabs to automate their prediction market operations. 
-            Free to get started, upgrade as you scale.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/auth/sign-up">
-              <Button size="lg" className="bg-white text-emerald-700 hover:bg-emerald-50 px-10 shadow-xl">
-                Start Trading Free
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer className="bg-white border-t border-[var(--line)] py-12">
-        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold">Z</div>
-            <span className="font-bold text-lg tracking-tight">ZLabs</span>
-          </div>
-          <div className="flex gap-8 text-[13px] font-medium text-[var(--muted)]">
-            <Link href="#" className="hover:text-[var(--ink)]">Terms</Link>
-            <Link href="#" className="hover:text-[var(--ink)]">Privacy</Link>
-            <Link href="#" className="hover:text-[var(--ink)]">Docs</Link>
-            <Link href="#" className="hover:text-[var(--ink)]">API</Link>
-          </div>
-          <div className="text-[12px] text-[var(--muted2)]">
-            © 2026 ZLabs Intelligence. All rights reserved.
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

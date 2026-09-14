@@ -15,26 +15,26 @@ const PLANS: {
   {
     id: "FREE",
     price: "$0",
-    features: ["1 bot", "5 trades/day", "CSV backtests", "Webhook endpoint"],
+    features: ["1 bot", "Paper quote testing", "Visual workflows", "KeeperHub connection"],
   },
   {
     id: "PRO",
     price: "$29/mo",
     features: [
       "3 bots",
-      "Unlimited trades",
-      "Advanced toggles",
-      "Priority support",
+      "Paper quote testing",
+      "Visual workflows",
+      "KeeperHub usage billed separately",
     ],
   },
   {
     id: "ENTERPRISE",
     price: "$99/mo",
     features: [
-      "Unlimited bots",
-      "Custom SL/TP logic",
-      "SLA",
-      "Dedicated support",
+      "100 bots",
+      "Visual workflows",
+      "Paper quote testing",
+      "KeeperHub usage billed separately",
     ],
   },
 ];

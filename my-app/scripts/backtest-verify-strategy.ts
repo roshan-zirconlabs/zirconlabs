@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { analyzeBacktest, type Market } from "../lib/backtest";
 
@@ -12,10 +12,12 @@ function readMarkets(): Market[] {
   const out: Market[] = [];
   for (const tf of tfs) {
     const file = path.join(ROOT, `public/data/last-${tf}-markets.json`);
-    const raw = readFileSync(file, "utf8");
-    const data = JSON.parse(raw);
-    const mks = (data.markets ?? []).map((m: Market) => ({ ...m, sourceTimeframe: tf }));
-    out.push(...mks);
+    if (existsSync(file)) {
+      const raw = readFileSync(file, "utf8");
+      const data = JSON.parse(raw);
+      const mks = (data.markets ?? []).map((m: Market) => ({ ...m, sourceTimeframe: tf }));
+      out.push(...mks);
+    }
   }
   return out;
 }
@@ -34,8 +36,8 @@ function parseExpected(resultsTxt: string) {
 
 function main() {
   const csv = readFileSync(CSV_PATH, "utf8");
-  const results = readFileSync(RESULTS_PATH, "utf8");
-  const expected = parseExpected(results);
+  const results = existsSync(RESULTS_PATH) ? readFileSync(RESULTS_PATH, "utf8") : "";
+  const expected = results ? parseExpected(results) : { signals: null, matched: null, winRatePct: null, roiPct: null };
   const markets = readMarkets();
 
   const report = analyzeBacktest({
