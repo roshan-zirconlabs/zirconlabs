@@ -57,7 +57,17 @@ export async function signTypedData(walletId: string, typedData: unknown): Promi
 
 export function managedWalletConfigured() { return Boolean(process.env.PRIVY_APP_ID?.trim() && process.env.PRIVY_APP_SECRET?.trim()); }
 
-/** Explicit launch gate for the signed Polymarket CLOB V2 adapter. */
+/**
+ * Explicit launch gate for the signed Polymarket CLOB V2 adapter.
+ *
+ * The relayer credential is part of the gate, not an optional extra:
+ * Polymarket rejects orders from a plain wallet, and the Deposit Wallet it
+ * requires instead can only be created through their relayer. Without it a
+ * live order fails at submission, after a budget reservation has been taken.
+ */
 export function liveExecutionConfigured() {
-  return managedWalletConfigured() && process.env.POLYMARKET_CLOB_V2_ADAPTER_READY === "true" && process.env.POLYMARKET_LIVE_ENABLED === "true";
+  const relayer = Boolean(process.env.POLYMARKET_RELAYER_API_KEY?.trim() && process.env.POLYMARKET_RELAYER_ADDRESS?.trim());
+  return managedWalletConfigured() && relayer
+    && process.env.POLYMARKET_CLOB_V2_ADAPTER_READY === "true"
+    && process.env.POLYMARKET_LIVE_ENABLED === "true";
 }
