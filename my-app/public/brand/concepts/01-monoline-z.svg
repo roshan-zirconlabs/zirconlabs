@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Zircon Labs — Monoline Z</title>
+  <defs><linearGradient id="g" x1="96" y1="104" x2="416" y2="408" gradientUnits="userSpaceOnUse"><stop stop-color="#4F46E5"/><stop offset=".52" stop-color="#7C3AED"/><stop offset="1" stop-color="#DB2777"/></linearGradient></defs>
+  <rect width="512" height="512" rx="104" fill="#0F172A"/>
+  <path d="M124 142H380L132 370H388" stroke="url(#g)" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="380" cy="142" r="25" fill="#F8FAFC"/><circle cx="380" cy="142" r="11" fill="#7C3AED"/>
+  <circle cx="388" cy="370" r="25" fill="#F8FAFC"/><circle cx="388" cy="370" r="11" fill="#DB2777"/>
+</svg>

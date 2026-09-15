@@ -1,0 +1,10 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Zircon Labs — Prism Execution</title>
+  <defs><linearGradient id="g" x1="125" y1="119" x2="390" y2="391" gradientUnits="userSpaceOnUse"><stop stop-color="#C4B5FD"/><stop offset=".5" stop-color="#7C3AED"/><stop offset="1" stop-color="#EC4899"/></linearGradient></defs>
+  <rect width="512" height="512" rx="104" fill="#0F172A"/>
+  <path d="M256 91L411 181V331L256 421L101 331V181L256 91Z" fill="url(#g)"/>
+  <path d="M256 129L373 197V315L256 383L139 315V197L256 129Z" fill="#0F172A"/>
+  <path d="M171 190H333L181 322H341" stroke="#F8FAFC" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M353 190L386 223" stroke="#F8FAFC" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="386" cy="223" r="18" fill="#F8FAFC"/>
+</svg>

@@ -46,9 +46,9 @@ export async function GET(
     if (!bot) return NextResponse.json({ error: "Bot not found" }, { status: 404 });
 
     return NextResponse.json(decorateBot(bot));
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("GET /api/bots/[botId] error:", err);
-    return NextResponse.json({ error: err.message || "Failed to fetch bot" }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to fetch bot" }, { status: 500 });
   }
 }
 
@@ -74,14 +74,14 @@ export async function DELETE(
     if (!bot) return NextResponse.json({ error: "Bot not found" }, { status: 404 });
 
     if (bot.keeperhubWorkflowId && !bot.keeperhubWorkflowId.startsWith("local_")) {
-      await (await keeperhubForUser(user.id)).deleteWorkflow(bot.keeperhubWorkflowId);
+      await (await keeperhubForUser(user.id)).client.deleteWorkflow(bot.keeperhubWorkflowId);
     }
 
     await prisma.bot.delete({ where: { id: botId } });
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("DELETE /api/bots/[botId] error:", err);
-    return NextResponse.json({ error: err.message || "Failed to delete bot" }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to delete bot" }, { status: 500 });
   }
 }

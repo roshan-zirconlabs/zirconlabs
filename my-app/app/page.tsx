@@ -121,7 +121,7 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-2 text-slate-600 text-[11px] leading-relaxed">
-                  <p className="text-slate-400">// Auto-rotating active window resolver</p>
+                  <p className="text-slate-400">{"// Auto-rotating active window resolver"}</p>
                   <p>
                     <span className="text-purple-600 font-semibold">[00:00:00]</span> Target:{" "}
                     <span className="text-slate-900 font-semibold">btc-updown-15m-1726000000</span>

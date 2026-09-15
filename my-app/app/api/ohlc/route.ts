@@ -83,7 +83,8 @@ export async function GET(req: NextRequest) {
         { status: 500 },
       );
     }
-    const data = (await res.json()) as any[];
+    // Binance klines: [openMs, open, high, low, close, volume, ...]
+    const data = (await res.json()) as (string | number)[][];
     if (!Array.isArray(data) || data.length === 0) break;
 
     const batch = data.map((k) => ({

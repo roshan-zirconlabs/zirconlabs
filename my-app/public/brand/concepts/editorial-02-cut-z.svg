@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Zircon Labs — Editorial Cut Z</title>
+  <rect width="512" height="512" fill="#141414"/>
+  <path d="M92 105H420V177H278L119 337H420V408H90V335H232L391 176H92V105Z" fill="#F4F0E6"/>
+  <path d="M306 177H420V221L232 408H119V363L306 177Z" fill="#2855FF"/>
+  <rect x="90" y="72" width="58" height="12" fill="#FF4D2E"/>
+  <rect x="364" y="428" width="56" height="12" fill="#FF4D2E"/>
+</svg>

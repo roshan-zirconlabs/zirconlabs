@@ -1,265 +1,80 @@
 "use client";
 
-import { Provider as JotaiProvider, useAtom } from "jotai";
-import { ArrowLeft, ExternalLink, Loader2, Play, Save } from "lucide-react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import Button from "@/components/ui/button";
-import Skeleton from "@/components/ui/skeleton";
-import { useToast } from "@/components/ui/toast";
-import {
-  edgesAtom,
-  isDirtyAtom,
-  isSavingAtom,
-  nodesAtom,
-  selectedNodeIdAtom,
-  workflowIdAtom,
-  workflowNameAtom,
-} from "@/components/workflow/store";
-import { autoLayout } from "@/components/workflow/auto-layout";
-import NodeConfigPanel from "@/components/workflow/node-config-panel";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, SlidersHorizontal } from "lucide-react";
+import StrategyBuilder from "@/components/bots/strategy-builder";
 import ActivationControl from "@/components/bots/activation-control";
-import {
-  ensureAddPlaceholders,
-  fromKeeperhubGraph,
-  toKeeperhubGraph,
-} from "@/components/workflow/serialize";
-import dynamic from "next/dynamic";
 
-const WorkflowCanvas = dynamic(
-  () => import("@/components/workflow/workflow-canvas"),
-  { ssr: false },
-);
-
-export default function BotEditorPage({
-  params,
-}: {
-  params: Promise<{ botId: string }>;
-}) {
-  return (
-    <JotaiProvider>
-      <BotEditorInner params={params} />
-    </JotaiProvider>
-  );
-}
-
-function BotEditorInner({
-  params,
-}: {
-  params: Promise<{ botId: string }>;
-}) {
+export default function BotEditorPage({ params }: { params: Promise<{ botId: string }> }) {
   const { botId } = use(params);
   const { status } = useSession();
   const router = useRouter();
-  const { toast } = useToast();
 
-  const [nodes, setNodes] = useAtom(nodesAtom);
-  const [edges, setEdges] = useAtom(edgesAtom);
-  const [, setSelectedId] = useAtom(selectedNodeIdAtom);
-  const [dirty, setDirty] = useAtom(isDirtyAtom);
-  const [saving, setSaving] = useAtom(isSavingAtom);
-  const [workflowId, setWfId] = useAtom(workflowIdAtom);
-  const [name, setName] = useAtom(workflowNameAtom);
+  const [statusOverride, setStatusOverride] = useState<{ status: string; keeperhubWorkflowId: string | null } | null>(null);
 
-  const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [botStatus, setBotStatus] = useState("INACTIVE");
+  const query = useQuery({
+    queryKey: ["bot-strategy", botId],
+    enabled: status === "authenticated",
+    queryFn: async () => {
+      const res = await fetch(`/api/bots/${botId}/strategy`);
+      if (!res.ok) throw new Error("This bot could not be loaded.");
+      return res.json() as Promise<{
+        bot: { name: string; status: string; keeperhubWorkflowId: string | null };
+        strategy: unknown | null;
+      }>;
+    },
+  });
 
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    let alive = true;
-    (async () => {
-      try {
-        const res = await fetch(`/api/bots/${botId}/workflow`);
-        if (!res.ok) {
-          throw new Error((await res.json())?.error || "Failed to load");
-        }
-        const json = await res.json();
-        if (!alive) return;
-        setWfId(json.bot?.keeperhubWorkflowId ?? null);
-        setBotStatus(json.bot?.status ?? "INACTIVE");
-        setName(json.name ?? json.bot?.name ?? "");
+  if (status === "unauthenticated") router.push(`/auth/sign-in?callbackUrl=/bots/${botId}/edit`);
 
-        const decoded = fromKeeperhubGraph(json.nodes, json.edges);
-        const withAdds = ensureAddPlaceholders(decoded.nodes, decoded.edges);
-        const laidOut = autoLayout(withAdds.nodes, withAdds.edges);
-        setNodes(laidOut);
-        setEdges(withAdds.edges);
-        setSelectedId(null);
-        setDirty(false);
-      } catch (e) {
-        toast({
-          variant: "error",
-          title: "Failed to load workflow",
-          description: String(e),
-        });
-        router.push(`/bots/${botId}`);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, botId]);
+  const bot = query.data ? { ...query.data.bot, ...(statusOverride ?? {}) } : null;
+  const hasStrategy = Boolean(query.data?.strategy);
+  const load = () => { void query.refetch(); };
 
-  const save = useCallback(async () => {
-    setSaving(true);
-    try {
-      const payload = toKeeperhubGraph(nodes, edges);
-      const res = await fetch(`/api/bots/${botId}/workflow`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...payload, name }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || err?.message || "Save failed");
-      }
-      setDirty(false);
-      toast({ variant: "success", title: "Workflow saved" });
-    } catch (e) {
-      toast({
-        variant: "error",
-        title: "Save failed",
-        description: String(e),
-      });
-    } finally {
-      setSaving(false);
-    }
-  }, [botId, nodes, edges, name, setSaving, setDirty, toast]);
-
-  const runOnce = useCallback(async () => {
-    if (!confirm("Run this published workflow on KeeperHub? Configured actions may spend real organization funds.")) return;
-    setRunning(true);
-    try {
-      const res = await fetch(`/api/bots/${botId}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmLive: true }) });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(json?.error || json?.message || "Run failed");
-      }
-      toast({ variant: "success", title: "Trigger fired" });
-    } catch (e) {
-      toast({
-        variant: "error",
-        title: "Run failed",
-        description: String(e),
-      });
-    } finally {
-      setRunning(false);
-    }
-  }, [botId, toast]);
-
-  // ── Keyboard shortcuts ─────────────────────────────────────────────────
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const meta = e.metaKey || e.ctrlKey;
-      // Cmd/Ctrl+S → save
-      if (meta && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        if (dirty && !saving) save();
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [dirty, saving, save]);
-
-  if (status === "loading" || loading) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-8">
-        <Skeleton className="h-8 w-64 mb-4" />
-        <Skeleton className="h-[500px] w-full" />
-      </div>
-    );
+  if (query.error) {
+    return <div className="mx-auto max-w-3xl px-4 py-10"><p role="alert" className="text-sm text-rose-700">{(query.error as Error).message}</p></div>;
   }
+  if (!bot) return <div className="mx-auto max-w-3xl px-4 py-10"><div className="h-64 animate-pulse rounded-2xl bg-purple-50" /></div>;
 
   return (
-    <div className="flex h-[calc(100vh-3rem)] w-full flex-col">
-      <div className="flex items-center justify-between border-b border-[var(--line)] bg-[var(--white)] px-4 py-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={() => router.push(`/bots/${botId}`)}
-            className="rounded-[var(--r)] p-1.5 text-[var(--muted)] hover:bg-[var(--line2)] hover:text-[var(--ink)]"
-          >
+    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-purple-100 pb-5">
+        <div className="flex items-center gap-3">
+          <Link href={`/bots/${botId}`} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100">
             <ArrowLeft className="h-4 w-4" />
-          </button>
-          <input
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setDirty(true);
-            }}
-            placeholder="Workflow name"
-            className="min-w-0 flex-1 rounded-[var(--r)] bg-transparent px-2 py-1 text-sm font-semibold text-[var(--ink)] outline-none focus:bg-[var(--line2)]"
-          />
+          </Link>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">{bot.name}</h1>
+            <p className="text-xs text-slate-500">Set up what this bot does. You can change it any time.</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href={`/bots/${botId}/advanced`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50">
+            <SlidersHorizontal className="h-3.5 w-3.5" /> Advanced
+          </Link>
           <ActivationControl
             botId={botId}
-            status={botStatus}
-            workflowId={workflowId}
-            disabled={dirty || saving}
+            status={bot.status}
+            workflowId={bot.keeperhubWorkflowId}
+            disabled={!hasStrategy}
             compact
-            onChanged={(next) => {
-              setBotStatus(next.status);
-              setWfId(next.keeperhubWorkflowId);
-            }}
+            onChanged={next => setStatusOverride({ status: next.status, keeperhubWorkflowId: next.keeperhubWorkflowId })}
           />
-          <Link
-            href="/markets"
-            target="_blank"
-            className="hidden items-center gap-1 rounded-[var(--r)] px-2 py-1 text-[11px] text-[var(--muted)] hover:bg-[var(--line2)] hover:text-[var(--ink)] sm:inline-flex"
-          >
-            Markets
-            <ExternalLink className="h-3 w-3" />
-          </Link>
-          <button
-            onClick={runOnce}
-            disabled={dirty || running || !workflowId}
-            title={dirty ? "Save first" : "Fire the trigger once"}
-            className="hidden items-center gap-1 rounded-[var(--r)] border border-[var(--line)] px-2 py-1 text-[11px] text-[var(--muted)] hover:bg-[var(--line2)] hover:text-[var(--ink)] disabled:opacity-40 sm:inline-flex"
-          >
-            {running ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Play className="h-3 w-3" />
-            )}
-            Test run
-          </button>
-          {dirty && (
-            <span className="text-[11px] text-[var(--muted)]">
-              Unsaved <span className="opacity-60">⌘S</span>
-            </span>
-          )}
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={save}
-            disabled={saving || !dirty}
-          >
-            {saving ? (
-              <>
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                Saving
-              </>
-            ) : (
-              <>
-                <Save className="mr-1.5 h-3.5 w-3.5" />
-                Save
-              </>
-            )}
-          </Button>
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0">
-        <div className="flex-1 min-w-0">
-          <WorkflowCanvas />
-        </div>
-        <NodeConfigPanel />
+      {!hasStrategy && (
+        <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Save a strategy below before you can turn this bot on.
+        </p>
+      )}
+
+      <div className="mt-6">
+        <StrategyBuilder botId={botId} onSaved={load} />
       </div>
     </div>
   );

@@ -72,11 +72,11 @@ export default function BotsPage() {
       const id = json?.id || json?.bot?.id;
       if (!id) throw new Error("No bot ID returned");
       router.push(`/bots/${id}`);
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({
         variant: "error",
         title: "Creation failed",
-        description: e.message || String(e),
+        description: e instanceof Error ? e.message : String(e),
       });
     } finally {
       setBusy(false);

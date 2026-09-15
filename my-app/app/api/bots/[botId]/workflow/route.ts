@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   if (bot.workflow) return NextResponse.json({ bot, name: bot.name, ...graphSchema.parse(bot.workflow) });
   if (bot.keeperhubWorkflowId && !bot.keeperhubWorkflowId.startsWith("local_")) {
     try {
-      const remote = await (await keeperhubForUser(session.user.id)).getWorkflow(bot.keeperhubWorkflowId);
+      const remote = await (await keeperhubForUser(session.user.id)).client.getWorkflow(bot.keeperhubWorkflowId);
       return NextResponse.json({ bot, name: bot.name, nodes: remote.nodes, edges: remote.edges });
     } catch { return NextResponse.json({ error: "Your hosted workflow could not be loaded. Reconnect KeeperHub and retry; no draft was replaced." }, { status: 502 }); }
   }
@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (bot.keeperhubWorkflowId && !bot.keeperhubWorkflowId.startsWith("local_")) {
     try {
       validateHostedGraph({ nodes, edges }, await getHostedSchemas());
-      await (await keeperhubForUser(session.user.id)).updateWorkflow(bot.keeperhubWorkflowId, { name, nodes, edges });
+      await (await keeperhubForUser(session.user.id)).client.updateWorkflow(bot.keeperhubWorkflowId, { name, nodes, edges });
     } catch (error) {
       return NextResponse.json({ error: `Draft saved locally, but KeeperHub was not updated. ${error instanceof Error ? error.message : "Retry synchronization."}`, draftSaved: true }, { status: 502 });
     }

@@ -12,7 +12,7 @@ export async function GET() {
         "Content-Disposition": 'attachment; filename="Strategy.csv"',
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json({ error: "Failed to load demo CSV" }, { status: 500 });
   }
 }

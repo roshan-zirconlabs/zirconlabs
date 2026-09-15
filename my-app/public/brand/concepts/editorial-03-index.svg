@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Zircon Labs — Editorial Index</title>
+  <rect width="512" height="512" fill="#2855FF"/>
+  <path d="M83 98H429V151H182L425 361V414H82V361H331L88 151H83V98Z" fill="#F4F0E6"/>
+  <path d="M82 361H331L425 442H82V361Z" fill="#141414"/>
+  <rect x="82" y="98" width="80" height="53" fill="#FF4D2E"/>
+  <text x="91" y="135" fill="#F4F0E6" font-family="Arial, sans-serif" font-size="24" font-weight="700">Z/</text>
+</svg>

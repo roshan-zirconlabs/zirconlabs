@@ -2,7 +2,9 @@
   "name": "zircon-labs",
   "version": "0.1.0",
   "private": true,
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
@@ -10,7 +12,7 @@
     "db:migrate": "prisma migrate deploy",
     "check:deployment": "node --env-file=.env --import tsx scripts/check-deployment.ts",
     "lint": "eslint",
-    "test": "node --import tsx --test lib/*.test.ts lib/trading/*.test.ts",
+    "test": "node --import tsx --test lib/*.test.ts lib/trading/*.test.ts lib/workflow/*.test.ts",
     "test:bot:e2e": "npx tsx --env-file=.env scripts/e2e-bot-test.ts",
     "postinstall": "prisma generate"
   },

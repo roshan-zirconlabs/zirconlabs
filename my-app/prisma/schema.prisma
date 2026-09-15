@@ -124,6 +124,8 @@ model Bot {
   status              BotStatus @default(INACTIVE)
   keeperhubWorkflowId String?   @unique
   workflow            Json?
+  /// Guided strategy spec (lib/workflow/strategy.ts). Null for raw-canvas bots.
+  strategy            Json?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 

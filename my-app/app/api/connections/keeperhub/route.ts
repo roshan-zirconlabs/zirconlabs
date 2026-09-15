@@ -3,13 +3,15 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/encryption";
 import { KeeperhubClient } from "@/lib/keeperhub";
+import { keeperhubManagedByPlatform } from "@/lib/keeperhub-connection";
 import { z } from "zod";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const connection = await prisma.keeperhubConnection.findUnique({ where: { userId: session.user.id }, select: { keyPrefix: true, verifiedAt: true } });
-  return NextResponse.json({ connection });
+  // When Zircon hosts workflows itself, a personal key is optional, not required.
+  return NextResponse.json({ connection, managedByPlatform: keeperhubManagedByPlatform() });
 }
 
 export async function PUT(req: NextRequest) {

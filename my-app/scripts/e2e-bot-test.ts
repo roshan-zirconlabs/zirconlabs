@@ -1,6 +1,6 @@
 import { prisma } from "../lib/prisma";
 import { autoLayout } from "../components/workflow/auto-layout";
-import { toKeeperhubGraph, fromKeeperhubGraph, ensureAddPlaceholders } from "../components/workflow/serialize";
+import { toKeeperhubGraph, ensureAddPlaceholders } from "../components/workflow/serialize";
 import type { WorkflowNode, WorkflowEdge } from "../components/workflow/types";
 
 async function main() {

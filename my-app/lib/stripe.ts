@@ -17,7 +17,7 @@ export const stripe = new Proxy({} as Stripe, {
     if (prop === "then") return undefined;
     const s = getStripe();
     const val = (s as unknown as Record<string | symbol, unknown>)[prop];
-    return typeof val === "function" ? (val as Function).bind(s) : val;
+    return typeof val === "function" ? (val as (...args: unknown[]) => unknown).bind(s) : val;
   },
 });
 

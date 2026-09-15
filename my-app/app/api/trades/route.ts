@@ -1,3 +1,4 @@
+import { Prisma, TradeStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -20,9 +21,12 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "50", 10) || 50, 100);
     const offset = parseInt(searchParams.get("offset") ?? "0", 10) || 0;
     const botId = searchParams.get("botId") || undefined;
-    const status = searchParams.get("status") || undefined;
+    // Only a real TradeStatus may reach the query; anything else is ignored
+    // rather than passed through to Prisma, which would throw.
+    const requested = searchParams.get("status");
+    const status = requested && requested in TradeStatus ? (requested as TradeStatus) : undefined;
 
-    const where: any = {
+    const where: Prisma.TradeWhereInput = {
       userId: user.id,
       ...(botId ? { botId } : {}),
       ...(status ? { status } : {}),
@@ -40,8 +44,8 @@ export async function GET(req: NextRequest) {
     ]);
 
     return NextResponse.json({ trades, total, limit, offset });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("GET /api/trades error:", err);
-    return NextResponse.json({ error: err.message || "Failed to fetch trades" }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to fetch trades" }, { status: 500 });
   }
 }

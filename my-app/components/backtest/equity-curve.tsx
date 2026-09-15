@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 
 interface EquityPoint {
   index: number;
@@ -61,20 +61,26 @@ export default function EquityCurve({ data, stakeUsd }: EquityCurveProps) {
   const innerWidth = width - padding.left - padding.right;
   const innerHeight = height - padding.top - padding.bottom;
 
-  const getX = (idx: number) =>
-    padding.left + (idx / Math.max(1, displayPoints.length - 1)) * innerWidth;
+  // Stable across renders so the memoized paths below can actually be reused.
+  const getX = useCallback(
+    (idx: number) => padding.left + (idx / Math.max(1, displayPoints.length - 1)) * innerWidth,
+    [padding.left, displayPoints.length, innerWidth],
+  );
 
-  const getY = (val: number) => {
-    const range = maxPnl - minPnl || 1;
-    return padding.top + innerHeight - ((val - minPnl) / range) * innerHeight;
-  };
+  const getY = useCallback(
+    (val: number) => {
+      const range = maxPnl - minPnl || 1;
+      return padding.top + innerHeight - ((val - minPnl) / range) * innerHeight;
+    },
+    [padding.top, innerHeight, maxPnl, minPnl],
+  );
 
   const pathD = useMemo(() => {
     if (!displayPoints.length) return "";
     return displayPoints
       .map((d, i) => `${i === 0 ? "M" : "L"} ${getX(i).toFixed(1)} ${getY(d.cumulativePnl).toFixed(1)}`)
       .join(" ");
-  }, [displayPoints, minPnl, maxPnl]);
+  }, [displayPoints, getX, getY]);
 
   const zeroY = getY(0);
   const areaD = useMemo(() => {
@@ -82,7 +88,7 @@ export default function EquityCurve({ data, stakeUsd }: EquityCurveProps) {
     const firstX = getX(0);
     const lastX = getX(displayPoints.length - 1);
     return `${pathD} L ${lastX} ${zeroY} L ${firstX} ${zeroY} Z`;
-  }, [pathD, displayPoints, zeroY]);
+  }, [pathD, displayPoints, zeroY, getX]);
 
   const isProfitable = finalPnl >= 0;
 

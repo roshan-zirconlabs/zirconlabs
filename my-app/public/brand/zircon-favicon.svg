@@ -1,0 +1,8 @@
+<svg width="64" height="64" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Zircon Labs favicon</title>
+  <defs><linearGradient id="favicon-gradient" x1="25" y1="24" x2="102" y2="104" gradientUnits="userSpaceOnUse"><stop stop-color="#A78BFA"/><stop offset="0.56" stop-color="#7C3AED"/><stop offset="1" stop-color="#EC4899"/></linearGradient></defs>
+  <rect width="128" height="128" rx="28" fill="#0F172A"/>
+  <path d="M27 28H95L77 46H55L35 66H67L49 84H27L45 66H27L45 46H27V28Z" fill="url(#favicon-gradient)"/>
+  <path d="M81 58L101 78L81 98" stroke="url(#favicon-gradient)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="95" cy="28" r="6" fill="#F5F3FF"/><circle cx="95" cy="28" r="3" fill="#7C3AED"/>
+</svg>

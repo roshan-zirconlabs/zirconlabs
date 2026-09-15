@@ -9,12 +9,10 @@ import {
   GAMMA_API_BASE,
   HOST as CLOB_API_BASE,
   getTokenIds,
-  getPrices,
   getBatchPrices,
 } from "@/lib/trading/polymarket-utils";
 
 const ET = "America/New_York";
-const ET_OFFSET_SEC = -5 * 3600; // EST = UTC-5
 
 type PricePoint = { t: number; p: number };
 type PriceHistoryResponse = { history: PricePoint[] };

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { keeperhubForUser } from "@/lib/keeperhub-connection";
 import { prisma } from "@/lib/prisma";
+import { executionOutcome } from "@/lib/keeperhub-client";
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ botId: string }> }) {
   const session = await auth();
   if (!session?.user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -19,8 +20,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ bot
   let warning: string | undefined;
   if (bot.keeperhubWorkflowId && !bot.keeperhubWorkflowId.startsWith("local_")) {
     try {
-      const remote = await (await keeperhubForUser(session.user.id)).getExecutions(bot.keeperhubWorkflowId);
-      executions.push(...remote.map(e => ({ ...e, source: "keeperhub" })));
+      const remote = await (await keeperhubForUser(session.user.id)).client.getExecutions(bot.keeperhubWorkflowId);
+      // Map KeeperHub's own status vocabulary onto the shape the UI renders,
+      // without discarding the original status.
+      executions.push(...remote.map(e => ({ ...e, keeperhubStatus: e.status, status: executionOutcome(String(e.status)), source: "keeperhub" })));
     } catch { warning = "KeeperHub execution history is unavailable. Local trade records are shown; refresh after reconnecting."; }
   }
   executions.sort((a, b) => Date.parse(String(b.startedAt ?? "")) - Date.parse(String(a.startedAt ?? "")));

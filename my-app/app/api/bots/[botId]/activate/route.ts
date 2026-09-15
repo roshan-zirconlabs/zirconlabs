@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { keeperhubForUser } from "@/lib/keeperhub-connection";
+import { keeperhubForUser, platformWorkflowName } from "@/lib/keeperhub-connection";
 import { getHostedSchemas, validateHostedGraph } from "@/lib/workflow-validation";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ botId: string }> }) {
@@ -12,13 +12,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bot
   const bot = await prisma.bot.findFirst({ where: { id: (await params).botId, userId: session.user.id } });
   if (!bot) return NextResponse.json({ error: "Bot not found" }, { status: 404 });
   try {
-    const kh = await keeperhubForUser(session.user.id);
+    const { client: kh, source } = await keeperhubForUser(session.user.id);
     let id = bot.keeperhubWorkflowId?.startsWith("local_") ? null : bot.keeperhubWorkflowId;
     if (body.active) {
       const input = bot.workflow ?? (id ? await kh.getWorkflow(id) : null);
       const graph = validateHostedGraph(input, await getHostedSchemas());
       if (!id) {
-        const wf = await kh.createWorkflow({ name: bot.name, ...graph });
+        // In the shared platform organization the name carries the owning bot,
+        // so a run in KeeperHub is always traceable back to one Zircon bot.
+        const wf = await kh.createWorkflow({ name: source === "platform" ? platformWorkflowName(bot.name, bot.id) : bot.name, ...graph });
         id = wf.id;
         // Save the identity before enabling so a retry never creates a second schedule.
         await prisma.bot.update({ where: { id: bot.id }, data: { keeperhubWorkflowId: id } });
