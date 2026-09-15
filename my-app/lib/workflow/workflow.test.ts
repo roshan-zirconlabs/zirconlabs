@@ -90,3 +90,22 @@ test("the compiled workflow only uses actions the host actually publishes", () =
   };
   assert.doesNotThrow(() => validateHostedGraph(compileStrategyWorkflow("botxyz", spec()), schemas));
 });
+
+test("a live bot verifies its collateral on-chain through KeeperHub before trading", () => {
+  const wallet = "0xF1aDF32887aA2d9d5a2d3764435282d8A5654b0F";
+  const graph = compileStrategyWorkflow("botxyz", spec({ mode: "live" }), wallet);
+  const balance = graph.nodes.find(n => n.id === "zlabs-balance");
+  assert.ok(balance, "live bots read the balance on-chain");
+  assert.equal(balance!.data.config.actionType, "web3/check-token-balance");
+  assert.equal(balance!.data.config.network, "137", "Polymarket settles on Polygon");
+  assert.equal(balance!.data.config.address, wallet);
+
+  // The check runs before the signal, and the chain stays fully connected.
+  const ids = new Set(graph.nodes.map(n => n.id));
+  assert.ok(graph.edges.every(e => ids.has(e.source) && ids.has(e.target)));
+  assert.ok(graph.edges.some(e => e.source === "zlabs-trigger" && e.target === "zlabs-balance"));
+  assert.ok(graph.edges.some(e => e.source === "zlabs-balance" && e.target === "zlabs-signal"));
+
+  // Practice bots move no money, so they do not need the on-chain read.
+  assert.equal(compileStrategyWorkflow("botxyz", spec({ mode: "paper" }), wallet).nodes.find(n => n.id === "zlabs-balance"), undefined);
+});

@@ -10,10 +10,12 @@ import { CRON_FOR_TIMEFRAME, describeStrategy, type StrategySpec } from "./strat
  * are authorised for a single bot and act on that bot owner's wallet only.
  */
 
+export const BALANCE_NODE_ID = "zlabs-balance";
 export const SIGNAL_NODE_ID = "zlabs-signal";
 export const GATE_NODE_ID = "zlabs-gate";
 export const EXECUTE_NODE_ID = "zlabs-execute";
 
+const BALANCE_LABEL = "Check trading balance";
 const SIGNAL_LABEL = "Read Polymarket signal";
 const GATE_LABEL = "Trade this run?";
 const EXECUTE_LABEL = "Place Polymarket order";
@@ -37,7 +39,15 @@ type KhNode = {
 
 type KhEdge = { id: string; source: string; target: string; sourceHandle?: string };
 
-export function compileStrategyWorkflow(botId: string, spec: StrategySpec): { nodes: KhNode[]; edges: KhEdge[] } {
+/** Polymarket's collateral on Polygon. https://docs.polymarket.com/resources/contracts */
+const COLLATERAL_TOKEN = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB";
+const POLYGON_CHAIN_ID = "137";
+
+export function compileStrategyWorkflow(
+  botId: string,
+  spec: StrategySpec,
+  tradingWalletAddress?: string | null,
+): { nodes: KhNode[]; edges: KhEdge[] } {
   const base = appBaseUrl();
   const token = botCallbackToken(botId);
   const headers = JSON.stringify({ Authorization: `Bearer ${token}`, "Content-Type": "application/json" });
@@ -122,6 +132,32 @@ export function compileStrategyWorkflow(botId: string, spec: StrategySpec): { no
     { id: "zlabs-e2", source: SIGNAL_NODE_ID, target: GATE_NODE_ID },
     { id: "zlabs-e3", source: GATE_NODE_ID, target: EXECUTE_NODE_ID, sourceHandle: "true" },
   ];
+
+  // A live bot reads its own collateral balance on Polygon through KeeperHub
+  // before it trades, so a run against an unfunded wallet fails in the run
+  // record with an on-chain reason rather than at our API. KeeperHub verifies
+  // the funding itself instead of taking Zircon's word for it.
+  if (spec.mode === "live" && tradingWalletAddress) {
+    nodes.splice(1, 0, {
+      id: BALANCE_NODE_ID,
+      type: "action",
+      position: { x: 320, y: 180 },
+      data: {
+        label: BALANCE_LABEL,
+        description: "Reads the bot owner's Polymarket collateral balance on Polygon.",
+        type: "action",
+        status: "idle",
+        config: {
+          actionType: "web3/check-token-balance",
+          network: POLYGON_CHAIN_ID,
+          address: tradingWalletAddress,
+          tokenConfig: JSON.stringify({ mode: "custom", customToken: { address: COLLATERAL_TOKEN, symbol: "pUSD" } }),
+        },
+      },
+    });
+    edges[0] = { id: "zlabs-e1", source: triggerId, target: BALANCE_NODE_ID };
+    edges.splice(1, 0, { id: "zlabs-e1b", source: BALANCE_NODE_ID, target: SIGNAL_NODE_ID });
+  }
 
   return { nodes, edges };
 }

@@ -37,10 +37,12 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   }
   const spec = parsed.data;
 
+  let tradingWalletAddress: string | null = null;
   if (spec.mode === "live") {
     const account = await prisma.polymarketManagedAccount.findUnique({
-      where: { userId: session.user.id }, select: { status: true, liveEnabled: true },
+      where: { userId: session.user.id }, select: { status: true, liveEnabled: true, walletAddress: true },
     });
+    tradingWalletAddress = account?.walletAddress ?? null;
     if (!account || account.status !== "ACTIVE" || !account.liveEnabled) {
       return NextResponse.json({
         error: "Fund your trading account and turn on live trading before saving a live strategy.",
@@ -51,7 +53,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
   let graph;
   try {
-    graph = compileStrategyWorkflow(bot.id, spec);
+    graph = compileStrategyWorkflow(bot.id, spec, tradingWalletAddress);
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "The strategy could not be compiled." }, { status: 500, headers });
   }
