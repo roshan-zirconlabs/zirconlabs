@@ -31,3 +31,33 @@ test("schema failures are distinguished from connectivity failures", async () =>
   assert.equal((await checkDatabase(async () => { throw { code: "P2022" }; })).code, "DATABASE_SCHEMA_MISMATCH");
   assert.equal((await checkDatabase(async () => {})).status, "ok");
 });
+
+test("a deployment without a callback secret or reachable origin is not reported healthy", () => {
+  const base = {
+    DATABASE_URL: "postgresql://u:p@host:5432/db",
+    AUTH_SECRET: "x".repeat(40),
+    GOOGLE_CLIENT_ID: "id",
+    GOOGLE_CLIENT_SECRET: "secret",
+    ENCRYPTION_KEY: "a".repeat(64),
+    AUTH_URL: "https://www.zirconlabs.org",
+    ZLABS_INGEST_SECRET: "y".repeat(30),
+    KEEPERHUB_API_KEY: "kh_live",
+  };
+  const ok = checkDeploymentConfig(base, "https://www.zirconlabs.org/api/health");
+  assert.deepEqual(ok.missing, []);
+  assert.equal(ok.keeperhubManaged, true);
+  assert.equal(ok.issues.length, 0);
+
+  // A short secret cannot derive bot tokens, so it counts as missing.
+  const weak = checkDeploymentConfig({ ...base, ZLABS_INGEST_SECRET: "tooshort" }, "https://www.zirconlabs.org/api/health");
+  assert.ok(weak.missing.includes("ZLABS_INGEST_SECRET"));
+
+  // localhost is unreachable from KeeperHub's schedulers.
+  const local = checkDeploymentConfig({ ...base, AUTH_URL: "http://localhost:3000", ZLABS_PUBLIC_URL: "http://localhost:3000" }, "http://localhost:3000/api/health");
+  assert.ok(local.issues.some(i => i.code === "CALLBACK_ORIGIN_UNREACHABLE"));
+
+  // Without a platform key users must bring their own organization.
+  const byo = checkDeploymentConfig({ ...base, KEEPERHUB_API_KEY: "" }, "https://www.zirconlabs.org/api/health");
+  assert.equal(byo.keeperhubManaged, false);
+  assert.ok(byo.issues.some(i => i.code === "KEEPERHUB_NOT_MANAGED"));
+});
