@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { Copy, Pause, ShieldCheck, Wallet } from "lucide-react";
 import type { BridgeAsset } from "@/lib/polymarket-bridge";
 import AccountReadiness from "@/components/wallet/account-readiness";
+import CashOut from "@/components/wallet/cash-out";
 
 type Account = { id: string; address: string; provider: string; status: string; liveEnabled: boolean; dailyLimitUsd: number; lastError: string | null };
 type Instructions = { destination: string; depositAddress: string; asset: BridgeAsset };
@@ -45,6 +46,7 @@ export default function WalletPage() {
         <section className="space-y-4 border-t border-slate-200 pt-7"><h2 className="text-lg font-semibold">Automation safety</h2><p className="text-sm leading-6 text-slate-600">Paper mode is always available. Live bots are off until you explicitly enable them after funding and reviewing a strategy.</p><label className="block text-sm font-medium">Daily spend limit (USD)<input value={limit} onChange={e => setLimit(e.target.value)} type="number" min="1" max="10000" step="1" className="mt-2 block w-48 rounded-lg border border-slate-300 p-3" /></label><div className="flex flex-wrap gap-3"><button onClick={saveControls} disabled={busy} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm disabled:opacity-50">Save limit</button><button onClick={enableLive} disabled={busy || account.liveEnabled || account.status === "PAUSED"} className="cosmic-btn-primary px-4 py-2.5 text-sm disabled:opacity-50">{account.liveEnabled ? "Live trading enabled" : "Enable live trading"}</button></div>{account.lastError && <p role="alert" className="text-sm text-red-700">{account.lastError}</p>}</section>
       </>}
       {account && <AccountReadiness />}
+      {account && <CashOut onChanged={() => void load()} />}
       {error && <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-800">{error}</p>}{notice && <p role="status" className="text-sm text-violet-700">{notice}</p>}
       <p className="border-t border-slate-200 pt-6 text-xs leading-5 text-slate-500">KeeperHub remains a separate workflow execution connection for its supported plugins. Polymarket accounts are subject to regional eligibility, market rules and the provider’s security policies.</p>
     </div>
