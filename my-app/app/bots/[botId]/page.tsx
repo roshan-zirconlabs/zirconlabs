@@ -6,9 +6,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Bot,
   ExternalLink,
-  Play,
   Trash2,
   Copy,
   Check,
@@ -16,6 +14,7 @@ import {
   Code2,
 } from "lucide-react";
 import ExecutionAuditTrail from "@/components/bots/execution-audit-trail";
+import ActivationControl from "@/components/bots/activation-control";
 
 type BotResponse = {
   id: string;
@@ -125,6 +124,13 @@ export default function BotDetailPage({
         </div>
 
         <div className="flex items-center gap-2.5">
+          <ActivationControl
+            botId={botId}
+            status={bot.status}
+            workflowId={bot.keeperhubWorkflowId}
+            compact
+            onChanged={(next) => setBot((current) => current ? { ...current, ...next } : current)}
+          />
           <Link
             href={`/bots/${botId}/edit`}
             className="cosmic-btn-primary inline-flex items-center gap-2 text-xs font-semibold px-4 py-2"

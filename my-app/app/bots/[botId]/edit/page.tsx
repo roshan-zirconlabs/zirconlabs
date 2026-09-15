@@ -20,6 +20,7 @@ import {
 } from "@/components/workflow/store";
 import { autoLayout } from "@/components/workflow/auto-layout";
 import NodeConfigPanel from "@/components/workflow/node-config-panel";
+import ActivationControl from "@/components/bots/activation-control";
 import {
   ensureAddPlaceholders,
   fromKeeperhubGraph,
@@ -64,6 +65,7 @@ function BotEditorInner({
 
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [botStatus, setBotStatus] = useState("INACTIVE");
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -77,6 +79,7 @@ function BotEditorInner({
         const json = await res.json();
         if (!alive) return;
         setWfId(json.bot?.keeperhubWorkflowId ?? null);
+        setBotStatus(json.bot?.status ?? "INACTIVE");
         setName(json.name ?? json.bot?.name ?? "");
 
         const decoded = fromKeeperhubGraph(json.nodes, json.edges);
@@ -194,6 +197,17 @@ function BotEditorInner({
           />
         </div>
         <div className="flex items-center gap-2">
+          <ActivationControl
+            botId={botId}
+            status={botStatus}
+            workflowId={workflowId}
+            disabled={dirty || saving}
+            compact
+            onChanged={(next) => {
+              setBotStatus(next.status);
+              setWfId(next.keeperhubWorkflowId);
+            }}
+          />
           <Link
             href="/markets"
             target="_blank"

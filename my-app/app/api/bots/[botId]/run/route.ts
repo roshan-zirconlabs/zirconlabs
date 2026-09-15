@@ -6,6 +6,7 @@ import { graphSchema } from "@/lib/workflow-validation";
 import { simulateBuy } from "@/lib/paper-fill";
 import { z } from "zod";
 import { liveExecutionConfigured } from "@/lib/polymarket/managed-account";
+import { workflowRunGuard } from "@/lib/bot-run-guard";
 
 const paperOrder = z.object({
   marketSlug: z.string().regex(/^[a-z0-9-]{1,220}$/),
@@ -28,7 +29,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bot
   try {
     if (body.paper !== true) {
       if (body.confirmLive !== true) return NextResponse.json({ error: "Explicit live-run confirmation is required. KeeperHub workflows can spend real funds." }, { status: 400 });
-      if (bot.status !== "ACTIVE" || !bot.keeperhubWorkflowId || bot.keeperhubWorkflowId.startsWith("local_")) throw new Error("Publish and activate the saved workflow before running it.");
+      const workflowId = bot.keeperhubWorkflowId;
+      const readiness = workflowRunGuard({ status: bot.status, keeperhubWorkflowId: workflowId });
+      if (!readiness.ok) return NextResponse.json({ error: readiness.error, code: "WORKFLOW_NOT_ACTIVE" }, { status: 409 });
+      if (!workflowId) return NextResponse.json({ error: "This bot is not published or active. Open the editor, save the workflow, then choose Publish & activate.", code: "WORKFLOW_NOT_ACTIVE" }, { status: 409 });
       const hasPolymarketAction = JSON.stringify(bot.workflow ?? "").toLowerCase().includes("polymarket");
       if (hasPolymarketAction) {
         if (!liveExecutionConfigured()) return NextResponse.json({ error: "The signed Polymarket CLOB V2 adapter is not enabled on this deployment yet." }, { status: 503 });
@@ -36,7 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bot
         if (!managed || managed.status !== "ACTIVE" || !managed.liveEnabled) return NextResponse.json({ error: "Enable live trading on your funded Trading account before running a live Polymarket bot." }, { status: 409 });
       }
       const kh = await keeperhubForUser(session.user.id);
-      const execution = await kh.executeWorkflow(bot.keeperhubWorkflowId, { source: "zircon-labs", botId: bot.id });
+      const execution = await kh.executeWorkflow(workflowId, { source: "zircon-labs", botId: bot.id });
       return NextResponse.json(execution, { status: 202 });
     }
     const graph = graphSchema.safeParse(bot.workflow);

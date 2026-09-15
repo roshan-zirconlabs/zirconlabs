@@ -8,8 +8,8 @@ import {
   Plus,
   ShieldCheck,
   ArrowRight,
-  Zap,
 } from "lucide-react";
+import ActivationControl from "@/components/bots/activation-control";
 
 type BotItem = {
   id: string;
@@ -66,32 +66,10 @@ export default function DashboardPage() {
         const data = await res.json();
         alert(data.error || "Failed to create bot");
       }
-    } catch (err: any) {
-      alert(err.message || "Failed to create bot");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to create bot");
     } finally {
       setCreating(false);
-    }
-  };
-
-  const handleToggleActive = async (botId: string, currentStatus: string) => {
-    const nextActive = currentStatus !== "ACTIVE";
-    try {
-      const res = await fetch(`/api/bots/${botId}/activate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ active: nextActive }),
-      });
-      if (res.ok) {
-        setBots((prev) =>
-          prev.map((b) =>
-            b.id === botId
-              ? { ...b, status: nextActive ? "ACTIVE" : "INACTIVE" }
-              : b,
-          ),
-        );
-      }
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -228,7 +206,6 @@ export default function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {bots.map((b) => {
-              const isActive = b.status === "ACTIVE";
               return (
                 <div
                   key={b.id}
@@ -250,17 +227,13 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(b.id, b.status)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold transition border ${
-                          isActive
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                            : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
-                        }`}
-                      >
-                        {isActive ? "● ACTIVE" : "○ PAUSED"}
-                      </button>
+                      <ActivationControl
+                        botId={b.id}
+                        status={b.status}
+                        workflowId={b.keeperhubWorkflowId}
+                        compact
+                        onChanged={(next) => setBots((prev) => prev.map((item) => item.id === b.id ? { ...item, ...next } : item))}
+                      />
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-mono bg-purple-50/40 p-2.5 rounded-lg border border-purple-100">
