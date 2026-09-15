@@ -22,7 +22,7 @@ function createPrismaClient(): PrismaClient {
   }
 
   try {
-    const pool = globalForPrisma.pool ?? new Pool({ connectionString, max: 3, connectionTimeoutMillis: 10000, idleTimeoutMillis: 20000 });
+    const pool = globalForPrisma.pool ?? new Pool({ connectionString, max: 3, connectionTimeoutMillis: 8000, query_timeout: 10000, statement_timeout: 10000, idleTimeoutMillis: 20000 });
     if (process.env.NODE_ENV !== "production") {
       globalForPrisma.pool = pool;
     }

@@ -9,6 +9,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // CLI/migrations can use a direct (or session-pooler) connection while
+    // application traffic uses the transaction pooler on Vercel.
+    url: process.env["DIRECT_URL"] || process.env["DATABASE_URL"],
   },
 });

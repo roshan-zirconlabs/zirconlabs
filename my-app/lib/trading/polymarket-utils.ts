@@ -1,5 +1,6 @@
 import axios from "axios";
 import { isAddress } from "viem";
+import { fetchMarket } from "../polymarket-markets";
 
 export const HOST = "https://clob.polymarket.com";
 export const DATA_API_BASE = "https://data-api.polymarket.com";
@@ -17,20 +18,6 @@ export type PolymarketPosition = {
   avgPrice: number;
 };
 
-const parseArray = <T>(value: unknown, mapper: (item: unknown) => T): T[] => {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.map(mapper);
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed.map(mapper) : [mapper(parsed)];
-    } catch {
-      return [];
-    }
-  }
-  return [mapper(value)];
-};
-
 const tokenIdCache = new Map<
   string,
   { yesTokenId: string; noTokenId: string; cachedAt: number }
@@ -44,63 +31,19 @@ export async function getTokenIds(
   if (cached && Date.now() - cached.cachedAt < TOKEN_CACHE_TTL) {
     return { yesTokenId: cached.yesTokenId, noTokenId: cached.noTokenId };
   }
-
   try {
-    const url = `${GAMMA_API_BASE}/markets/slug/${slug}`;
-    const response = await axios.get(url, { timeout: 5000 });
-    const market = response.data;
-    if (market) {
-      const outcomes = parseArray(market.outcomes, String);
-      const tokenIds = parseArray(market.clobTokenIds, String);
-      if (outcomes.length >= 2 && tokenIds.length >= 2) {
-        const upIdx = outcomes.findIndex(
-          (o) =>
-            String(o).toLowerCase() === "up" ||
-            String(o).toLowerCase() === "yes",
-        );
-        const downIdx = outcomes.findIndex(
-          (o) =>
-            String(o).toLowerCase() === "down" ||
-            String(o).toLowerCase() === "no",
-        );
-        if (upIdx !== -1 && downIdx !== -1) {
-          const result = {
-            yesTokenId: tokenIds[upIdx],
-            noTokenId: tokenIds[downIdx],
-          };
-          tokenIdCache.set(slug, { ...result, cachedAt: Date.now() });
-          return result;
-        }
-      }
-    }
+    const market = await fetchMarket(slug);
+    const yes = market.outcomes.find(o => /^(yes|up)$/i.test(o.label));
+    const no = market.outcomes.find(o => /^(no|down)$/i.test(o.label));
+    if (!yes || !no) return null;
+    const result = { yesTokenId: yes.assetId, noTokenId: no.assetId };
+    if (tokenIdCache.size >= 500) tokenIdCache.delete(tokenIdCache.keys().next().value!);
+    tokenIdCache.set(slug, { ...result, cachedAt: Date.now() });
+    return result;
   } catch {
-    // Fall through to Data API
+    // Failed lookup stays unknown. Data API has no market-by-slug endpoint.
+    return null;
   }
-
-  try {
-    const url = `${DATA_API_BASE}/markets/${slug}`;
-    const response = await axios.get(url, { timeout: 5000 });
-    const market = response.data;
-    if (market?.tokens) {
-      const yesToken = market.tokens.find(
-        (t: { outcome: string }) => t.outcome === "Yes" || t.outcome === "Up",
-      );
-      const noToken = market.tokens.find(
-        (t: { outcome: string }) => t.outcome === "No" || t.outcome === "Down",
-      );
-      if (yesToken?.token_id && noToken?.token_id) {
-        const result = {
-          yesTokenId: yesToken.token_id,
-          noTokenId: noToken.token_id,
-        };
-        tokenIdCache.set(slug, { ...result, cachedAt: Date.now() });
-        return result;
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return null;
 }
 
 export async function getPrices(

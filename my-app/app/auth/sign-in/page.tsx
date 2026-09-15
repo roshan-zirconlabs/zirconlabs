@@ -11,7 +11,9 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     {params.error && <p role="alert" className="mt-5 text-sm text-red-700">
       {params.error === "OAuthAccountNotLinked"
         ? "This Google email already has a workspace. Try again and we’ll securely link the Google account to it."
-        : "Sign-in failed. Please use a verified Google account and try again."}
+        : params.error === "Configuration"
+          ? "Sign-in is temporarily unavailable because the server could not complete authentication. The operator should check database connectivity and the authentication logs."
+          : "Sign-in failed. Please use a verified Google account and try again."}
     </p>}
     {configured ? <form className="mt-8" action={async () => { "use server"; await signIn("google", { redirectTo: destination }); }}>
       <button className="cosmic-btn-primary w-full px-5 py-3">Continue with Google</button>

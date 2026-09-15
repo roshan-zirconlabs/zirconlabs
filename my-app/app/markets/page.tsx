@@ -91,6 +91,8 @@ export default function MarketsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 space-y-6">
+      <Link href="/trade" className="inline-block rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium focus-visible:outline-2 focus-visible:outline-violet-600">Search all Polymarket markets and preview an order</Link>
+      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-purple-100 pb-5">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-xs font-mono mb-2 shadow-2xs">

@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
+import { checkDatabase, checkDeploymentConfig } from "@/lib/deployment-health";
+import { probeAuthDatabase } from "@/lib/auth-database-probe";
 export const dynamic = "force-dynamic";
-export function GET() {
-  const missing = [
-    ["DATABASE_URL", process.env.DATABASE_URL],
-    ["AUTH_SECRET", process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET],
-    ["GOOGLE_CLIENT_ID", process.env.GOOGLE_CLIENT_ID],
-    ["GOOGLE_CLIENT_SECRET", process.env.GOOGLE_CLIENT_SECRET],
-    ["ENCRYPTION_KEY", /^[a-f0-9]{64}$/i.test(process.env.ENCRYPTION_KEY ?? "") ? "valid" : ""],
-  ].filter(([, value]) => !value).map(([name]) => name);
+export const runtime = "nodejs";
+export async function GET(request: Request) {
+  const { missing, issues, callbackUrl } = checkDeploymentConfig(process.env, request.url);
+  const database = missing.includes("DATABASE_URL") ? { status: "unavailable", code: "DATABASE_URL_MISSING" } : await checkDatabase(probeAuthDatabase);
   const managedWallets = Boolean(process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET);
-  return NextResponse.json({ status: missing.length ? "misconfigured" : "configured", missing, optionalMissing: managedWallets ? [] : ["PRIVY_APP_ID", "PRIVY_APP_SECRET"], capabilities: { managedWallets, polymarketLive: managedWallets && process.env.POLYMARKET_LIVE_ENABLED === "true" && process.env.POLYMARKET_CLOB_V2_ADAPTER_READY === "true" }, checks: "Configuration only; not a database or upstream connectivity probe." }, { status: missing.length ? 503 : 200, headers: { "Cache-Control": "no-store" } });
+  const ok = missing.length === 0 && database.status === "ok" && !issues.some(i => i.code.startsWith("AUTH_") || i.code === "DATABASE_URL_INVALID");
+  return NextResponse.json({ status: ok ? "healthy" : "unavailable", missing, issues, database, auth: { callbackUrl }, capabilities: { managedWallets, polymarketLive: managedWallets && process.env.POLYMARKET_LIVE_ENABLED === "true" && process.env.POLYMARKET_CLOB_V2_ADAPTER_READY === "true" }, checks: "Environment configuration and live auth database/schema query. Google consent and funded trading are separate checks." }, { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } });
 }
