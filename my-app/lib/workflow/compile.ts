@@ -53,19 +53,39 @@ export function compileStrategyWorkflow(
   const headers = JSON.stringify({ Authorization: `Bearer ${token}`, "Content-Type": "application/json" });
 
   const triggerId = "zlabs-trigger";
-  const nodes: KhNode[] = [
-    {
-      id: triggerId,
-      type: "trigger",
-      position: { x: 0, y: 0 },
-      data: {
-        label: "Schedule",
-        description: describeStrategy(spec),
+  const webhookSourced = spec.source === "webhook";
+  const triggerNode: KhNode = webhookSourced
+    ? {
+        id: triggerId,
         type: "trigger",
-        status: "idle",
-        config: { triggerType: "Schedule", scheduleCron: CRON_FOR_TIMEFRAME[spec.timeframe], scheduleTimezone: "UTC" },
-      },
-    },
+        position: { x: 0, y: 0 },
+        data: {
+          label: "Alert",
+          description: describeStrategy(spec),
+          type: "trigger",
+          status: "idle",
+          config: {
+            triggerType: "Webhook",
+            // TradingView posts `strategy.order.action` as buy/sell.
+            webhookMockRequest: JSON.stringify({ action: "buy", ticker: `${spec.asset}USD` }),
+          },
+        },
+      }
+    : {
+        id: triggerId,
+        type: "trigger",
+        position: { x: 0, y: 0 },
+        data: {
+          label: "Schedule",
+          description: describeStrategy(spec),
+          type: "trigger",
+          status: "idle",
+          config: { triggerType: "Schedule", scheduleCron: CRON_FOR_TIMEFRAME[spec.timeframe], scheduleTimezone: "UTC" },
+        },
+      };
+
+  const nodes: KhNode[] = [
+    triggerNode,
     {
       id: SIGNAL_NODE_ID,
       type: "action",
@@ -113,12 +133,21 @@ export function compileStrategyWorkflow(
           endpoint: `${base}/api/workflow/execute`,
           httpMethod: "POST",
           httpHeaders: headers,
-          httpBody: JSON.stringify({
-            botId,
-            direction: `{{@${SIGNAL_NODE_ID}:${SIGNAL_LABEL}.data.direction}}`,
-            marketSlug: `{{@${SIGNAL_NODE_ID}:${SIGNAL_LABEL}.data.marketSlug}}`,
-            requestId: `{{@${SIGNAL_NODE_ID}:${SIGNAL_LABEL}.data.requestId}}`,
-          }),
+          httpBody: webhookSourced
+            ? JSON.stringify({
+                botId,
+                source: "alert",
+                // The alert names the direction; Zircon resolves the open
+                // market and the window's request id server-side.
+                alertAction: `{{@${triggerId}:Alert.action}}`,
+              })
+            : JSON.stringify({
+                botId,
+                source: "rule",
+                direction: `{{@${SIGNAL_NODE_ID}:${SIGNAL_LABEL}.data.direction}}`,
+                marketSlug: `{{@${SIGNAL_NODE_ID}:${SIGNAL_LABEL}.data.marketSlug}}`,
+                requestId: `{{@${SIGNAL_NODE_ID}:${SIGNAL_LABEL}.data.requestId}}`,
+              }),
           timeout: 30,
           // Never auto-retry an order submission: a retry can double-spend.
           retryAttempts: 0,
@@ -127,11 +156,20 @@ export function compileStrategyWorkflow(
     },
   ];
 
-  const edges: KhEdge[] = [
-    { id: "zlabs-e1", source: triggerId, target: SIGNAL_NODE_ID },
-    { id: "zlabs-e2", source: SIGNAL_NODE_ID, target: GATE_NODE_ID },
-    { id: "zlabs-e3", source: GATE_NODE_ID, target: EXECUTE_NODE_ID, sourceHandle: "true" },
-  ];
+  let edges: KhEdge[];
+  if (webhookSourced) {
+    // The alert already decided, so the rule and its branch are removed
+    // entirely rather than left in the graph doing nothing.
+    const drop = new Set<string>([SIGNAL_NODE_ID, GATE_NODE_ID]);
+    for (let i = nodes.length - 1; i >= 0; i -= 1) if (drop.has(nodes[i].id)) nodes.splice(i, 1);
+    edges = [{ id: "zlabs-e1", source: triggerId, target: EXECUTE_NODE_ID }];
+  } else {
+    edges = [
+      { id: "zlabs-e1", source: triggerId, target: SIGNAL_NODE_ID },
+      { id: "zlabs-e2", source: SIGNAL_NODE_ID, target: GATE_NODE_ID },
+      { id: "zlabs-e3", source: GATE_NODE_ID, target: EXECUTE_NODE_ID, sourceHandle: "true" },
+    ];
+  }
 
   // A live bot reads its own collateral balance on Polygon through KeeperHub
   // before it trades, so a run against an unfunded wallet fails in the run
@@ -155,8 +193,9 @@ export function compileStrategyWorkflow(
         },
       },
     });
+    const firstStep = edges[0].target;
     edges[0] = { id: "zlabs-e1", source: triggerId, target: BALANCE_NODE_ID };
-    edges.splice(1, 0, { id: "zlabs-e1b", source: BALANCE_NODE_ID, target: SIGNAL_NODE_ID });
+    edges.splice(1, 0, { id: "zlabs-e1b", source: BALANCE_NODE_ID, target: firstStep });
   }
 
   return { nodes, edges };

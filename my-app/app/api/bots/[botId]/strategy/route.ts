@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { strategySpec, describeStrategy } from "@/lib/workflow/strategy";
+import { keeperhub } from "@/lib/keeperhub";
 import { compileStrategyWorkflow } from "@/lib/workflow/compile";
 import { getHostedSchemas, validateHostedGraph, KeeperhubCatalogError } from "@/lib/workflow-validation";
 
@@ -17,10 +18,16 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   });
   if (!bot) return NextResponse.json({ error: "Bot not found" }, { status: 404 });
   const spec = strategySpec.safeParse(bot.strategy);
+  // A webhook-triggered bot is only usable once it is published, because the
+  // alert URL belongs to the KeeperHub workflow.
+  const alertUrl = spec.success && spec.data.source === "webhook" && bot.keeperhubWorkflowId
+    ? keeperhub.webhookUrl(bot.keeperhubWorkflowId)
+    : null;
   return NextResponse.json({
     bot: { id: bot.id, name: bot.name, status: bot.status, keeperhubWorkflowId: bot.keeperhubWorkflowId },
     strategy: spec.success ? spec.data : null,
     summary: spec.success ? describeStrategy(spec.data) : null,
+    alertUrl,
   }, { headers });
 }
 

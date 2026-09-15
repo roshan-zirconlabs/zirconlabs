@@ -8,6 +8,7 @@ import { ASSETS, RULES, TIMEFRAMES } from "@/lib/workflow/strategy";
 
 type Spec = {
   version: 1;
+  source: "schedule" | "webhook";
   asset: (typeof ASSETS)[number];
   timeframe: (typeof TIMEFRAMES)[number];
   rule: string;
@@ -32,7 +33,7 @@ type Preview = {
 };
 
 const DEFAULTS: Spec = {
-  version: 1, asset: "BTC", timeframe: "15m", rule: "momentum",
+  version: 1, source: "schedule", asset: "BTC", timeframe: "15m", rule: "momentum",
   fastPeriod: 9, slowPeriod: 21, stakeUsd: 10, maxPrice: 0.95, mode: "paper",
 };
 
@@ -51,6 +52,7 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
   const [saved, setSaved] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [alertUrl, setAlertUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -60,6 +62,7 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
         const json = await res.json();
         if (!alive) return;
         if (json.strategy) setSpec({ ...DEFAULTS, ...json.strategy });
+        setAlertUrl(json.alertUrl ?? null);
       } catch { /* A new bot simply starts from the defaults. */ }
       finally { if (alive) setLoading(false); }
     })();
@@ -71,7 +74,8 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
     setDirty(true); setSaved(false); setPreview(null);
   }, []);
 
-  const usesAverages = spec.rule === "sma-cross";
+  const alertDriven = spec.source === "webhook";
+  const usesAverages = !alertDriven && spec.rule === "sma-cross";
   const sentence = useMemo(() => {
     const rule = RULES.find(r => r.id === spec.rule);
     return `${CADENCE[spec.timeframe]}, check ${spec.asset} and — using “${rule?.label ?? spec.rule}” — stake $${spec.stakeUsd} on the ${spec.asset} ${spec.timeframe} up/down market, never paying more than ${Math.round(spec.maxPrice * 100)}¢ a share.`;
@@ -109,7 +113,29 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-purple-100 bg-white p-5 shadow-xs">
-        <h2 className="text-sm font-semibold text-slate-900">1 · What should this bot watch?</h2>
+        <h2 className="text-sm font-semibold text-slate-900">1 · What starts a trade?</h2>
+        <div className="mt-4 space-y-2">
+          <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${!alertDriven ? "border-purple-300 bg-purple-50/60" : "border-slate-200 hover:bg-slate-50"}`}>
+            <input type="radio" name="source" className="mt-0.5" checked={!alertDriven} onChange={() => set("source", "schedule")} />
+            <span>
+              <span className="block text-sm font-medium text-slate-900">A schedule</span>
+              <span className="block text-xs text-slate-500">Zircon checks the market on a timer and decides using a rule you pick below.</span>
+            </span>
+          </label>
+          <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${alertDriven ? "border-purple-300 bg-purple-50/60" : "border-slate-200 hover:bg-slate-50"}`}>
+            <input type="radio" name="source" className="mt-0.5" checked={alertDriven} onChange={() => set("source", "webhook")} />
+            <span>
+              <span className="block text-sm font-medium text-slate-900">My own alert (TradingView)</span>
+              <span className="block text-xs text-slate-500">
+                Your existing TradingView alert decides. Paste one URL into the alert and your strategy trades the prediction market.
+              </span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-purple-100 bg-white p-5 shadow-xs">
+        <h2 className="text-sm font-semibold text-slate-900">2 · Which market?</h2>
         <p className="mt-1 text-xs text-slate-500">
           Polymarket runs a fresh “will the price be up or down?” market for each window. Your bot finds the open one automatically.
         </p>
@@ -129,8 +155,9 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
         </div>
       </section>
 
+      {!alertDriven && (
       <section className="rounded-2xl border border-purple-100 bg-white p-5 shadow-xs">
-        <h2 className="text-sm font-semibold text-slate-900">2 · How should it decide?</h2>
+        <h2 className="text-sm font-semibold text-slate-900">3 · How should it decide?</h2>
         <div className="mt-4 space-y-2">
           {RULES.map(r => (
             <label key={r.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${spec.rule === r.id ? "border-purple-300 bg-purple-50/60" : "border-slate-200 hover:bg-slate-50"}`}>
@@ -158,9 +185,10 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
           </div>
         )}
       </section>
+      )}
 
       <section className="rounded-2xl border border-purple-100 bg-white p-5 shadow-xs">
-        <h2 className="text-sm font-semibold text-slate-900">3 · How much, and how careful?</h2>
+        <h2 className="text-sm font-semibold text-slate-900">4 · How much, and how careful?</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="text-xs font-medium text-slate-700">Stake per trade (USD)</span>
@@ -180,7 +208,7 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
       </section>
 
       <section className="rounded-2xl border border-purple-100 bg-white p-5 shadow-xs">
-        <h2 className="text-sm font-semibold text-slate-900">4 · Practice or real money?</h2>
+        <h2 className="text-sm font-semibold text-slate-900">5 · Practice or real money?</h2>
         <div className="mt-4 space-y-2">
           <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${spec.mode === "paper" ? "border-purple-300 bg-purple-50/60" : "border-slate-200"}`}>
             <input type="radio" name="mode" className="mt-0.5" checked={spec.mode === "paper"} onChange={() => set("mode", "paper")} />
@@ -207,10 +235,12 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
       <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
         <p className="text-sm text-slate-700"><span className="font-semibold">In plain terms:</span> {sentence}</p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          {!alertDriven && (
           <Button type="button" variant="outline" size="sm" onClick={() => void runPreview()} disabled={previewing}>
             {previewing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Play className="mr-1.5 h-3.5 w-3.5" />}
             What would it do right now?
           </Button>
+          )}
           <Button type="button" variant="primary" size="sm" onClick={() => void save()} disabled={saving || (!dirty && saved)}>
             {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
             {saving ? "Saving…" : saved ? "Saved" : "Save strategy"}
@@ -221,6 +251,32 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
           <p role="alert" className="mt-3 flex items-start gap-2 text-sm text-rose-700">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}
           </p>
+        )}
+
+        {alertDriven && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+            <p className="font-medium text-slate-900">Connecting TradingView</p>
+            {alertUrl ? (
+              <>
+                <p className="mt-2 text-xs text-slate-500">
+                  In TradingView, open your alert, tick <span className="font-medium">Webhook URL</span>, and paste this:
+                </p>
+                <code className="mt-2 block break-all rounded-lg bg-slate-50 p-2.5 font-mono text-[11px] text-slate-800">{alertUrl}</code>
+                <p className="mt-3 text-xs text-slate-500">Then set the alert message to exactly this:</p>
+                <code className="mt-2 block break-all rounded-lg bg-slate-50 p-2.5 font-mono text-[11px] text-slate-800">
+                  {"{\"action\": \"{{strategy.order.action}}\"}"}
+                </code>
+                <p className="mt-3 text-xs text-slate-500">
+                  TradingView sends <span className="font-mono">buy</span> or <span className="font-mono">sell</span>; the bot buys UP or DOWN to match.
+                  Repeat alerts inside the same market window are ignored, and every trade stays inside the limits above.
+                </p>
+              </>
+            ) : (
+              <p className="mt-2 text-xs text-slate-500">
+                Save this strategy and turn the bot on. Your alert URL appears here once it is published.
+              </p>
+            )}
+          </div>
         )}
 
         {preview && (

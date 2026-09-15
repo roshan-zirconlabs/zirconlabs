@@ -3,7 +3,9 @@ import { z } from "zod";
 import { OrderSide, OrderType } from "@polymarket/client";
 import { prisma } from "@/lib/prisma";
 import { bearerBotId } from "@/lib/workflow/bot-token";
-import { strategySpec, evaluateRule } from "@/lib/workflow/strategy";
+import { strategySpec, evaluateRule, directionFromAlert } from "@/lib/workflow/strategy";
+import crypto from "crypto";
+import { TIMEFRAME_DURATION } from "@/lib/market-data";
 import { resolveActiveMarket } from "@/lib/workflow/active-market";
 import { fetchCandles, CandleError } from "@/lib/workflow/candles";
 import { MarketError } from "@/lib/polymarket-markets";
@@ -17,11 +19,30 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 const headers = { "Cache-Control": "no-store" };
 
-const body = z.object({
-  direction: z.enum(["UP", "DOWN"]),
-  marketSlug: z.string().trim().min(1).max(240),
-  requestId: z.uuid(),
-});
+/**
+ * Rule-driven runs carry the signal step's decision and are re-checked against
+ * it. Alert-driven runs carry only the alert's wording: Zircon resolves the
+ * open market and derives the window's request id itself, so the caller cannot
+ * choose which market or how often to trade.
+ */
+const body = z.union([
+  z.object({
+    source: z.literal("rule").optional(),
+    direction: z.enum(["UP", "DOWN"]),
+    marketSlug: z.string().trim().min(1).max(240),
+    requestId: z.uuid(),
+  }),
+  z.object({
+    source: z.literal("alert"),
+    alertAction: z.string().trim().min(1).max(40),
+  }),
+]);
+
+/** A stable UUID for one bot/market/window, so a repeated alert cannot double-spend. */
+function windowRequestId(botId: string, slug: string, window: number): string {
+  const h = crypto.createHash("sha256").update(`${botId}:${slug}:${window}`).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
 
 async function readBook(assetId: string) {
   const res = await fetch(`https://clob.polymarket.com/book?${new URLSearchParams({ token_id: assetId })}`, {
@@ -62,27 +83,60 @@ export async function POST(req: NextRequest) {
   const spec = strategySpec.safeParse(bot.strategy);
   if (!spec.success) return NextResponse.json({ error: "This bot has no valid strategy configured." }, { status: 409, headers });
 
-  // Idempotency: one recorded trade per bot, market and window.
-  const existing = await prisma.trade.findUnique({ where: { keeperhubExecutionId: input.requestId } });
-  if (existing) {
-    return NextResponse.json({ ok: true, duplicate: true, tradeId: existing.id, status: existing.status, message: "This window was already executed." }, { headers });
+  // A bot only accepts the trigger source it was configured with, so an alert
+  // cannot drive a scheduled bot or vice versa.
+  if ((input.source === "alert") !== (spec.data.source === "webhook")) {
+    return NextResponse.json({ error: "This bot is not configured for that trigger source." }, { status: 409, headers });
+  }
+
+  async function alreadyTraded(requestId: string) {
+    return prisma.trade.findUnique({ where: { keeperhubExecutionId: requestId } });
+  }
+
+  // A rule-driven run reuses the signal step's id; an alert never supplies one,
+  // so it is derived here and the caller cannot bypass the per-window guard.
+  if (input.source !== "alert") {
+    const seen = await alreadyTraded(input.requestId);
+    if (seen) {
+      return NextResponse.json({ ok: true, duplicate: true, tradeId: seen.id, status: seen.status, message: "This window was already executed." }, { headers });
+    }
   }
 
   try {
     const nowSec = Math.floor(Date.now() / 1000);
-    const [resolved, candles] = await Promise.all([
-      resolveActiveMarket(spec.data, nowSec),
-      fetchCandles(spec.data, Math.max(spec.data.slowPeriod + 2, 50)),
-    ]);
-    if (resolved.slug !== input.marketSlug) {
-      return NextResponse.json({ error: "The market rotated between the signal and the order. Nothing was executed." }, { status: 409, headers });
-    }
-    const decision = evaluateRule(spec.data, candles);
-    if (decision.direction !== input.direction) {
-      return NextResponse.json({ error: "The strategy no longer implies that direction. Nothing was executed.", reason: decision.reason }, { status: 409, headers });
+    const resolved = await resolveActiveMarket(spec.data, nowSec);
+
+    let direction: "UP" | "DOWN";
+    let reason: string;
+    let requestId: string;
+
+    if (input.source === "alert") {
+      const named = directionFromAlert(input.alertAction);
+      if (!named) {
+        return NextResponse.json({ error: `The alert said "${input.alertAction}", which does not name a direction. Send buy/sell, long/short or up/down.` }, { status: 400, headers });
+      }
+      direction = named;
+      reason = `Alert said "${input.alertAction}".`;
+      requestId = windowRequestId(bot.id, resolved.slug, Math.floor(nowSec / TIMEFRAME_DURATION[spec.data.timeframe]));
+      const seen = await alreadyTraded(requestId);
+      if (seen) {
+        return NextResponse.json({ ok: true, duplicate: true, tradeId: seen.id, status: seen.status, message: "This market window was already traded. Repeat alerts in the same window are ignored." }, { headers });
+      }
+    } else {
+      if (resolved.slug !== input.marketSlug) {
+        return NextResponse.json({ error: "The market rotated between the signal and the order. Nothing was executed." }, { status: 409, headers });
+      }
+      const candles = await fetchCandles(spec.data, Math.max(spec.data.slowPeriod + 2, 50));
+      const decision = evaluateRule(spec.data, candles);
+      if (decision.direction !== input.direction) {
+        return NextResponse.json({ error: "The strategy no longer implies that direction. Nothing was executed.", reason: decision.reason }, { status: 409, headers });
+      }
+      direction = input.direction;
+      reason = decision.reason;
+      requestId = input.requestId;
     }
 
-    const outcome = input.direction === "UP" ? resolved.up : resolved.down;
+    const outcome = direction === "UP" ? resolved.up : resolved.down;
     const book = await readBook(outcome.assetId);
 
     if (spec.data.mode === "paper") {
@@ -96,13 +150,13 @@ export async function POST(req: NextRequest) {
         }, { status: 409, headers });
       }
       const trade = await prisma.trade.create({ data: {
-        userId: bot.userId, botId: bot.id, signal: "BUY", side: "BUY", direction: input.direction,
+        userId: bot.userId, botId: bot.id, signal: "BUY", side: "BUY", direction,
         marketSlug: resolved.slug, tokenId: outcome.assetId, ...fill,
-        status: "FILLED", executedAt: new Date(), paper: true, keeperhubExecutionId: input.requestId,
+        status: "FILLED", executedAt: new Date(), paper: true, keeperhubExecutionId: requestId,
       } });
       return NextResponse.json({
-        ok: true, paper: true, tradeId: trade.id, marketSlug: resolved.slug, direction: input.direction,
-        ...fill, reason: decision.reason,
+        ok: true, paper: true, tradeId: trade.id, marketSlug: resolved.slug, direction,
+        ...fill, reason,
         message: "Quote-time paper fill. Excludes fees, queue position and settlement. No real order was placed.",
       }, { headers });
     }
@@ -123,7 +177,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "The trading balance is below the stake for this run." }, { status: 409, headers });
     }
 
-    const orderRequest = { marketSlug: resolved.slug, outcome: outcome.label, amountUsd: spec.data.stakeUsd, maxPrice: spec.data.maxPrice, requestId: input.requestId, confirm: true as const };
+    const orderRequest = { marketSlug: resolved.slug, outcome: outcome.label, amountUsd: spec.data.stakeUsd, maxPrice: spec.data.maxPrice, requestId, confirm: true as const };
     const reserved = await reserveOrder(bot.userId, orderRequest, outcome.assetId);
     if (!reserved.created) {
       return NextResponse.json({ ok: true, duplicate: true, status: reserved.attempt.status, message: "This window is already being executed." }, { status: 202, headers });
@@ -140,10 +194,10 @@ export async function POST(req: NextRequest) {
     }
 
     const trade = await prisma.trade.create({ data: {
-      userId: bot.userId, botId: bot.id, signal: "BUY", side: "BUY", direction: input.direction,
+      userId: bot.userId, botId: bot.id, signal: "BUY", side: "BUY", direction,
       marketSlug: resolved.slug, tokenId: outcome.assetId, amount: spec.data.stakeUsd, price: spec.data.maxPrice,
       status: "PENDING", orderId: response.orderId, executedAt: new Date(), paper: false,
-      keeperhubExecutionId: input.requestId,
+      keeperhubExecutionId: requestId,
     } });
     await prisma.polymarketOrderAttempt.update({
       where: { id: reserved.attempt.id },
@@ -151,7 +205,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({
       ok: true, paper: false, tradeId: trade.id, orderId: response.orderId, status: response.status,
-      marketSlug: resolved.slug, direction: input.direction, reason: decision.reason,
+      marketSlug: resolved.slug, direction, reason,
     }, { headers });
   } catch (error) {
     const status = error instanceof MarketError ? error.status : error instanceof CandleError ? 503 : 502;

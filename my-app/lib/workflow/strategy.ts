@@ -25,11 +25,22 @@ export const RULES = [
   { id: "always-down", label: "Always buy DOWN", help: "No condition — buys DOWN every run. Useful for testing." },
 ] as const;
 
+/**
+ * Where the decision comes from.
+ *
+ * `schedule` evaluates one of the built-in rules on a cron. `webhook` takes the
+ * direction from an external alert — a TradingView strategy alert, say — so a
+ * trader can route a strategy they already trust into a prediction market
+ * without rebuilding it here.
+ */
+export const TRIGGER_SOURCES = ["schedule", "webhook"] as const;
+
 export const strategySpec = z.object({
   version: z.literal(1).default(1),
+  source: z.enum(TRIGGER_SOURCES).default("schedule"),
   asset: z.enum(ASSETS),
   timeframe: z.enum(TIMEFRAMES),
-  rule: z.enum(RULES.map(r => r.id) as [string, ...string[]]),
+  rule: z.enum(RULES.map(r => r.id) as [string, ...string[]]).default("momentum"),
   fastPeriod: z.number().int().min(2).max(100).default(9),
   slowPeriod: z.number().int().min(3).max(400).default(21),
   /** Stake per run, in collateral dollars. */
@@ -41,10 +52,25 @@ export const strategySpec = z.object({
   maxPrice: z.number().finite().gt(0).lt(1).default(0.95),
   /** Paper records a simulated fill; live submits a real signed CLOB order. */
   mode: z.enum(["paper", "live"]).default("paper"),
-}).refine(s => s.slowPeriod > s.fastPeriod, {
+}).refine(s => s.source === "webhook" || s.slowPeriod > s.fastPeriod, {
   message: "The slow average must cover more candles than the fast average.",
   path: ["slowPeriod"],
 });
+
+/**
+ * Maps an external alert's wording onto a market direction.
+ *
+ * TradingView sends `strategy.order.action` as buy/sell; people also write
+ * long/short or up/down by hand. Anything else returns null rather than being
+ * guessed at — an ambiguous alert must not place a trade.
+ */
+export function directionFromAlert(value: unknown): "UP" | "DOWN" | null {
+  if (typeof value !== "string") return null;
+  const word = value.trim().toLowerCase();
+  if (["buy", "long", "up", "bull", "bullish"].includes(word)) return "UP";
+  if (["sell", "short", "down", "bear", "bearish"].includes(word)) return "DOWN";
+  return null;
+}
 
 export type StrategySpec = z.infer<typeof strategySpec>;
 
@@ -95,7 +121,11 @@ export function evaluateRule(spec: StrategySpec, candles: Candle[]): SignalDecis
 }
 
 export function describeStrategy(spec: StrategySpec): string {
+  const market = `the ${spec.asset} ${spec.timeframe} up/down market`;
+  if (spec.source === "webhook") {
+    return `when an alert arrives, stake $${spec.stakeUsd} on ${market} in the direction the alert names (${spec.mode}).`;
+  }
   const rule = RULES.find(r => r.id === spec.rule);
   const cadence = { "15m": "every 15 minutes", "1h": "hourly", "4h": "every 4 hours", "1d": "daily" }[spec.timeframe];
-  return `${cadence}, stake $${spec.stakeUsd} on the ${spec.asset} ${spec.timeframe} up/down market using “${rule?.label ?? spec.rule}” (${spec.mode}).`;
+  return `${cadence}, stake $${spec.stakeUsd} on ${market} using “${rule?.label ?? spec.rule}” (${spec.mode}).`;
 }

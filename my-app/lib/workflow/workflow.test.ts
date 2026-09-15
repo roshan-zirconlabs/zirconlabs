@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { botCallbackToken, verifyBotCallbackToken } from "./bot-token";
-import { evaluateRule, strategySpec, type StrategySpec, type Candle } from "./strategy";
+import { evaluateRule, strategySpec, directionFromAlert, type StrategySpec, type Candle } from "./strategy";
 import { candidateSlugs } from "./active-market";
-import { compileStrategyWorkflow, EXECUTE_NODE_ID } from "./compile";
+import { compileStrategyWorkflow, EXECUTE_NODE_ID, SIGNAL_NODE_ID, GATE_NODE_ID, BALANCE_NODE_ID } from "./compile";
 import { validateHostedGraph, type HostedSchemas } from "../workflow-validation";
 
 process.env.ZLABS_INGEST_SECRET ||= "test-secret-value-at-least-24-chars";
@@ -108,4 +108,45 @@ test("a live bot verifies its collateral on-chain through KeeperHub before tradi
 
   // Practice bots move no money, so they do not need the on-chain read.
   assert.equal(compileStrategyWorkflow("botxyz", spec({ mode: "paper" }), wallet).nodes.find(n => n.id === "zlabs-balance"), undefined);
+});
+
+test("an alert's wording maps to a direction, and ambiguity never trades", () => {
+  for (const word of ["buy", "BUY", " long ", "up", "bullish"]) assert.equal(directionFromAlert(word), "UP", word);
+  for (const word of ["sell", "short", "DOWN", "bearish"]) assert.equal(directionFromAlert(word), "DOWN", word);
+  // An alert that does not name a direction must not be guessed at.
+  for (const word of ["", "close", "flat", "exit", "maybe", "1", "{{strategy.order.action}}"]) {
+    assert.equal(directionFromAlert(word), null, word);
+  }
+  assert.equal(directionFromAlert(undefined), null);
+  assert.equal(directionFromAlert(42), null);
+});
+
+test("an alert-driven bot is triggered by a webhook and carries no rule branch", () => {
+  const graph = compileStrategyWorkflow("botxyz", spec({ source: "webhook" }));
+  const trigger = graph.nodes.find(n => n.type === "trigger");
+  assert.equal(trigger!.data.config.triggerType, "Webhook");
+
+  // The alert is the decision, so the signal and Condition steps are removed
+  // rather than left in the graph doing nothing.
+  assert.equal(graph.nodes.find(n => n.id === SIGNAL_NODE_ID), undefined);
+  assert.equal(graph.nodes.find(n => n.id === GATE_NODE_ID), undefined);
+
+  const execute = graph.nodes.find(n => n.id === EXECUTE_NODE_ID);
+  const body = JSON.parse(String((execute!.data.config as { httpBody: string }).httpBody));
+  assert.equal(body.source, "alert");
+  assert.equal(body.alertAction, "{{@zlabs-trigger:Alert.action}}");
+  // The alert cannot choose its market or its request id.
+  assert.equal(body.marketSlug, undefined);
+  assert.equal(body.requestId, undefined);
+
+  const ids = new Set(graph.nodes.map(n => n.id));
+  assert.ok(graph.edges.every(e => ids.has(e.source) && ids.has(e.target)), "no dangling edges");
+});
+
+test("an alert-driven live bot still checks its balance on-chain first", () => {
+  const graph = compileStrategyWorkflow("botxyz", spec({ source: "webhook", mode: "live" }), "0xF1aDF32887aA2d9d5a2d3764435282d8A5654b0F");
+  assert.ok(graph.edges.some(e => e.source === "zlabs-trigger" && e.target === BALANCE_NODE_ID));
+  assert.ok(graph.edges.some(e => e.source === BALANCE_NODE_ID && e.target === EXECUTE_NODE_ID));
+  const ids = new Set(graph.nodes.map(n => n.id));
+  assert.ok(graph.edges.every(e => ids.has(e.source) && ids.has(e.target)));
 });
