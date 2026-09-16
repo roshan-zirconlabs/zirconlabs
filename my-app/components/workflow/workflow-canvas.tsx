@@ -4,7 +4,6 @@ import {
   Background,
   BackgroundVariant,
   Controls,
-  MiniMap,
   ReactFlow,
   ReactFlowProvider,
   addEdge,
@@ -68,7 +67,7 @@ function CanvasInner() {
     (conn: Connection) => {
       setEdges((curr) =>
         addEdge(
-          { ...conn, id: newId("e"), type: "smoothstep", animated: true },
+          { ...conn, id: newId("e"), type: "smoothstep" },
           curr,
         ) as WorkflowEdge[],
       );
@@ -128,7 +127,6 @@ function CanvasInner() {
             source: sourceId,
             target: newNodeId,
             type: "smoothstep",
-            animated: true,
           },
         ];
       }
@@ -151,7 +149,6 @@ function CanvasInner() {
           source: newNodeId,
           target: addId,
           type: "smoothstep",
-          animated: false,
           style: { strokeDasharray: "4 4" },
         },
       ];
@@ -168,7 +165,7 @@ function CanvasInner() {
   );
 
   return (
-    <div className="relative h-full w-full">
+    <div className="zircon-flow relative h-full w-full bg-[rgba(5,7,26,0.55)]">
       <ReactFlow
         nodes={decoratedNodes}
         edges={edges}
@@ -184,27 +181,14 @@ function CanvasInner() {
         fitView
         fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: "smoothstep", animated: true }}
+        defaultEdgeOptions={{ type: "smoothstep" }}
+        colorMode="dark"
+        onlyRenderVisibleElements
         minZoom={0.3}
         maxZoom={1.5}
       >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={16}
-          size={1}
-          color="var(--line)"
-        />
-        <Controls
-          showInteractive={false}
-          className="!rounded-[var(--r)] !border !border-[var(--line)] !bg-[var(--white)] !shadow-sm"
-        />
-        <MiniMap
-          pannable
-          zoomable
-          className="!rounded-[var(--r)] !border !border-[var(--line)] !bg-[var(--white)]"
-          nodeColor="var(--ink)"
-          maskColor="rgba(255,255,255,0.7)"
-        />
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="rgba(255,255,255,0.12)" />
+        <Controls showInteractive={false} className="!overflow-hidden !rounded-xl !border !border-white/10 !shadow-none" />
       </ReactFlow>
 
       {pickerOpen && (

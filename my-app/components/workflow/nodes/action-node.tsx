@@ -31,43 +31,43 @@ export const ActionNode = memo(function ActionNode({
   return (
     <div
       className={cn(
-        "relative flex min-h-[100px] w-[250px] items-center gap-3 rounded-xl border bg-white px-4 py-3 shadow-xs transition-all",
+        "relative flex min-h-[100px] w-[250px] items-center gap-3 rounded-2xl border bg-[#0e1030] px-4 py-3 transition-colors",
         selected
-          ? "border-purple-600 ring-3 ring-purple-500/20 shadow-md shadow-purple-500/10"
-          : "border-purple-100 hover:border-purple-300 hover:shadow-md",
-        isUnconfigured && "border-dashed border-slate-300 bg-slate-50/50",
+          ? "border-[#f7a8cf] shadow-[0_0_0_3px_rgba(224,97,159,0.2),0_0_30px_-6px_rgba(224,97,159,0.5)]"
+          : "border-white/12 hover:border-white/30",
+        isUnconfigured && "border-dashed border-white/25",
       )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!h-2.5 !w-2.5 !border-2 !border-white !bg-purple-600"
+        className="!h-2.5 !w-2.5 !border-2 !border-[#0e1030] !bg-[#f7a8cf]"
       />
       <div
         className={cn(
-          "grid h-10 w-10 shrink-0 place-items-center rounded-lg shadow-xs",
+          "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
           isUnconfigured
-            ? "bg-slate-100 text-slate-400"
-            : "bg-purple-50 text-purple-700 border border-purple-100",
+            ? "bg-white/5 text-[var(--c-faint)]"
+            : "border border-white/10 bg-gradient-to-br from-[rgba(146,119,245,0.35)] to-[rgba(224,97,159,0.25)] text-white",
         )}
       >
         <Icon className="h-5 w-5" strokeWidth={1.75} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-purple-600">
+        <div className="c-mono text-[10px] uppercase tracking-wider text-[var(--c-pink)]">
           {isPaper ? "Paper demo" : def?.category ?? integrationType ?? "Action"}
         </div>
-        <div className="truncate text-xs font-bold text-slate-900">
+        <div className="truncate text-sm font-semibold text-white">
           {title}
         </div>
-        <div className="truncate text-[11px] text-slate-500">
+        <div className="truncate text-[11px] text-[var(--c-dim)]">
           {description}
         </div>
       </div>
       <Handle
         type="source"
         position={Position.Right}
-        className="!h-2.5 !w-2.5 !border-2 !border-white !bg-purple-600"
+        className="!h-2.5 !w-2.5 !border-2 !border-[#0e1030] !bg-[#f7a8cf]"
       />
     </div>
   );

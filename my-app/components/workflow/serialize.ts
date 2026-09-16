@@ -103,7 +103,6 @@ export function fromKeeperhubGraph(
           sourceHandle: (e.sourceHandle as string | null) ?? null,
           targetHandle: (e.targetHandle as string | null) ?? null,
           type: (e.type as string) ?? "smoothstep",
-          animated: true,
         }))
     : [];
 

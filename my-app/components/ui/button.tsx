@@ -10,36 +10,21 @@ type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: Size;
 };
 
-const base =
-  "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/40 disabled:opacity-40 disabled:pointer-events-none cursor-pointer select-none";
-
 const variants: Record<Variant, string> = {
-  primary:
-    "bg-[var(--primary)] text-white font-semibold hover:bg-[var(--primary-hover)] shadow-md shadow-purple-500/25 active:scale-[0.98]",
-  secondary:
-    "border border-purple-200 bg-purple-50/70 text-purple-900 hover:bg-purple-100 hover:border-purple-300 font-medium shadow-xs",
-  outline:
-    "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-xs",
-  ghost: "text-slate-600 hover:text-purple-900 hover:bg-purple-50/70",
-  danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-md shadow-rose-500/20",
+  primary: "c-btn-primary",
+  secondary: "c-btn-ghost",
+  outline: "c-btn-ghost",
+  ghost:
+    "inline-flex items-center justify-center gap-2 rounded-full px-3 text-sm text-[var(--c-dim)] transition-colors hover:bg-white/5 hover:text-white disabled:opacity-45",
+  danger: "c-btn-danger",
 };
 
 const sizes: Record<Size, string> = {
-  sm: "h-8 px-3 text-xs",
-  md: "h-9 px-4 text-xs",
-  lg: "h-11 px-5 text-sm",
+  sm: "c-btn-sm",
+  md: "",
+  lg: "!min-h-12 !px-6 !text-[15px]",
 };
 
-export default function Button({
-  className,
-  variant = "primary",
-  size = "md",
-  ...props
-}: Props) {
-  return (
-    <button
-      className={cn(base, variants[variant], sizes[size], className)}
-      {...props}
-    />
-  );
+export default function Button({ className, variant = "primary", size = "md", ...props }: Props) {
+  return <button className={cn(variants[variant], sizes[size], className)} {...props} />;
 }

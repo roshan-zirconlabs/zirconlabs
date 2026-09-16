@@ -93,29 +93,29 @@ export default function EquityCurve({ data, stakeUsd }: EquityCurveProps) {
   const isProfitable = finalPnl >= 0;
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-[#0c0d12] p-5">
+    <div className="rounded-2xl border border-white/10 bg-black/25 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div>
-          <h3 className="text-sm font-semibold text-neutral-200">
+          <h3 className="text-sm font-semibold text-white">
             Cumulative Strategy Growth (PnL)
           </h3>
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-[var(--c-faint)]">
             Simulated portfolio performance across {points.length.toLocaleString()} executions (${stakeUsd} stake)
           </p>
         </div>
         {hoveredPoint ? (
-          <div className="flex items-center gap-3 text-xs font-mono bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-lg">
-            <span className="text-neutral-400">Trade #{hoveredPoint.tradeNum}:</span>
+          <div className="flex items-center gap-3 text-xs font-mono c-mono rounded-full border border-white/10 bg-[rgba(10,12,36,0.95)] px-3 py-1.5">
+            <span className="text-[var(--c-dim)]">Trade #{hoveredPoint.tradeNum}:</span>
             <span className={hoveredPoint.isWin ? "text-emerald-400 font-semibold" : "text-rose-400 font-semibold"}>
               {hoveredPoint.pnl >= 0 ? "+" : ""}${hoveredPoint.pnl.toFixed(2)}
             </span>
-            <span className="text-neutral-500">|</span>
-            <span className="text-neutral-300">
+            <span className="text-[var(--c-faint)]">|</span>
+            <span className="text-white">
               Cum: ${hoveredPoint.cumulativePnl.toFixed(2)}
             </span>
           </div>
         ) : (
-          <div className="text-xs font-mono text-neutral-400">
+          <div className="text-xs font-mono text-[var(--c-dim)]">
             Final:{" "}
             <span className={isProfitable ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
               {isProfitable ? "+" : ""}${finalPnl.toFixed(2)}
@@ -131,12 +131,12 @@ export default function EquityCurve({ data, stakeUsd }: EquityCurveProps) {
         >
           <defs>
             <linearGradient id="equityGradGreen" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="#5ee0a6" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#5ee0a6" stopOpacity="0.0" />
             </linearGradient>
             <linearGradient id="equityGradRed" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="#fb7f9a" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#fb7f9a" stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
@@ -151,7 +151,7 @@ export default function EquityCurve({ data, stakeUsd }: EquityCurveProps) {
                   y1={y}
                   x2={width - padding.right}
                   y2={y}
-                  stroke="#1c1f28"
+                  stroke="rgba(255,255,255,0.07)"
                   strokeDasharray="3 3"
                 />
                 <text
@@ -160,7 +160,7 @@ export default function EquityCurve({ data, stakeUsd }: EquityCurveProps) {
                   textAnchor="end"
                   fontSize="10"
                   fontFamily="monospace"
-                  fill="#64748b"
+                  fill="rgba(226,220,255,0.5)"
                 >
                   ${val.toFixed(0)}
                 </text>
@@ -175,7 +175,7 @@ export default function EquityCurve({ data, stakeUsd }: EquityCurveProps) {
               y1={zeroY}
               x2={width - padding.right}
               y2={zeroY}
-              stroke="#334155"
+              stroke="rgba(255,255,255,0.25)"
               strokeWidth="1.5"
             />
           )}
@@ -190,7 +190,7 @@ export default function EquityCurve({ data, stakeUsd }: EquityCurveProps) {
           <path
             d={pathD}
             fill="none"
-            stroke={isProfitable ? "#10b981" : "#f43f5e"}
+            stroke={isProfitable ? "#5ee0a6" : "#fb7f9a"}
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -206,7 +206,7 @@ export default function EquityCurve({ data, stakeUsd }: EquityCurveProps) {
                 cx={cx}
                 cy={cy}
                 r="4"
-                className="opacity-0 hover:opacity-100 transition-opacity cursor-pointer fill-white stroke-emerald-400 stroke-2"
+                className="opacity-0 hover:opacity-100 transition-opacity cursor-pointer fill-white stroke-[#f7a8cf] stroke-2"
                 onMouseEnter={() => setHoveredPoint(pt)}
                 onMouseLeave={() => setHoveredPoint(null)}
               />

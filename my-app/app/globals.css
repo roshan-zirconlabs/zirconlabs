@@ -1,176 +1,466 @@
 @import "tailwindcss";
 
 :root {
-  /* ── Galaxy identity ──────────────────────────────────────────────
-   * One accent hue (indigo-periwinkle), used consistently everywhere —
-   * including through Tailwind's own purple/violet utility scales below,
-   * so the hundreds of existing purple- and violet- classes across the app
-   * repaint in this palette without being touched file by file. */
-  --bg-app: #f7f6fc;
-  --bg-app-deep: #f0eefa;
-  --bg-card: #ffffff;
-  --bg-card-hover: #faf9fe;
-  --bg-elevated: #ffffff;
-  --line: #e4e2ef;
-  --line-light: #edebf5;
-  --line-accent: #d8d5ea;
-  --white: #ffffff;
-  --line2: #edebf5;
-  --ink: #171528;
-  --ink-secondary: #2f2c47;
-  --muted: #6d6a82;
-  --muted2: #928fa3;
+  color-scheme: dark;
 
-  --primary: #6f6fd9;
-  --primary-hover: #5a58c9;
-  --accent-soft: #e6e5fb;
-  --accent-glow: rgba(111, 111, 217, 0.16);
+  /* ── Cosmos identity ─────────────────────────────────────────────── */
+  --c-void: #05071a;
+  --c-panel: #0e1030;
+  --c-panel-2: #141739;
+  --c-ink: #f5f0ff;
+  --c-dim: rgba(226, 220, 255, 0.7);
+  --c-faint: rgba(226, 220, 255, 0.48);
+  --c-line: rgba(255, 255, 255, 0.1);
+  --c-line-strong: rgba(255, 255, 255, 0.18);
+  --c-magenta: #e0619f;
+  --c-pink: #f7a8cf;
+  --c-violet: #9277f5;
+  --c-blue: #6f88f0;
+  --c-lav: #f3e2f7;
+  --c-up: #5ee0a6;
+  --c-down: #fb7f9a;
 
-  /* Planet-material hues, shared with the homepage journey and reusable
-   * anywhere a small set of distinguishable accent colors is needed. */
-  --planet-rocky: #e8785a;
-  --planet-banded: #e3a93e;
-  --planet-ringed: #6f6fd9;
-  --planet-swirl: #2fa88f;
-  --planet-ember: #d9628f;
-
-  --emerald: #059669;
-  --emerald-dim: rgba(16, 185, 129, 0.1);
-  --rose: #e11d48;
-  --rose-dim: rgba(225, 29, 72, 0.08);
-  --cyan: #0284c7;
-  --cyan-dim: rgba(2, 132, 199, 0.08);
-  --amber: #d97706;
-  --amber-dim: rgba(217, 119, 6, 0.08);
-  --r: 10px;
-  --r-lg: 14px;
-  --r-xl: 20px;
-
-  --shadow-cosmic: 0 4px 20px -2px rgba(111, 111, 217, 0.1), 0 1px 3px 0 rgba(0, 0, 0, 0.04);
-  --shadow-elevated: 0 10px 30px -4px rgba(111, 111, 217, 0.14), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+  /* Older variable names still read by a few components. */
+  --bg-app: var(--c-void);
+  --white: var(--c-panel);
+  --ink: var(--c-ink);
+  --muted: var(--c-dim);
+  --muted2: var(--c-faint);
+  --line: var(--c-line);
+  --line2: rgba(255, 255, 255, 0.06);
+  --primary: var(--c-violet);
+  --r: 12px;
+  --r-lg: 18px;
+  --r-xl: 24px;
 }
 
 @theme inline {
-  --color-background: var(--bg-app);
-  --color-foreground: var(--ink);
-  --color-muted: var(--muted);
-  --color-card: var(--bg-card);
-  --color-border: var(--line);
-  --font-sans: var(--font-work-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-background: var(--c-void);
+  --color-foreground: var(--c-ink);
+  --color-panel: var(--c-panel);
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument), "Times New Roman", serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Repaint Tailwind's built-in purple AND violet scales onto the galaxy
-   * indigo hue. Both families are used across existing components — this
-   * is what makes every page share one identity without per-file edits. */
-  --color-purple-50: #f5f5fd;
-  --color-purple-100: #ecebfb;
-  --color-purple-200: #dad8f7;
-  --color-purple-300: #bfbdf0;
-  --color-purple-400: #9d9ae6;
-  --color-purple-500: #6f6fd9;
-  --color-purple-600: #5a58c9;
-  --color-purple-700: #4a47ab;
-  --color-purple-800: #3d3b8a;
-  --color-purple-900: #302f6e;
-  --color-purple-950: #1e1d47;
+  /* Tailwind's neutral and accent scales, re-cut for a dark ground:
+   * low steps are dark tinted surfaces, high steps are light text. */
+  --color-slate-50: #10122e;
+  --color-slate-100: #171a3b;
+  --color-slate-200: #252850;
+  --color-slate-300: #363a66;
+  --color-slate-400: #8286ae;
+  --color-slate-500: #a0a3c6;
+  --color-slate-600: #b8bad8;
+  --color-slate-700: #d0d2ea;
+  --color-slate-800: #e4e5f4;
+  --color-slate-900: #f3f2fb;
+  --color-slate-950: #fbfaff;
 
-  --color-violet-50: #f5f5fd;
-  --color-violet-100: #ecebfb;
-  --color-violet-200: #dad8f7;
-  --color-violet-300: #bfbdf0;
-  --color-violet-400: #9d9ae6;
-  --color-violet-500: #6f6fd9;
-  --color-violet-600: #5a58c9;
-  --color-violet-700: #4a47ab;
-  --color-violet-800: #3d3b8a;
-  --color-violet-900: #302f6e;
-  --color-violet-950: #1e1d47;
+  --color-purple-50: #171236;
+  --color-purple-100: #21194a;
+  --color-purple-200: #342a68;
+  --color-purple-300: #4d3f92;
+  --color-purple-400: #7a66d6;
+  --color-purple-500: #9277f5;
+  --color-purple-600: #b3a1ff;
+  --color-purple-700: #c9bbff;
+  --color-purple-800: #ddd3ff;
+  --color-purple-900: #eee9ff;
+  --color-purple-950: #f7f4ff;
+
+  --color-violet-50: #171236;
+  --color-violet-100: #21194a;
+  --color-violet-200: #342a68;
+  --color-violet-300: #4d3f92;
+  --color-violet-400: #7a66d6;
+  --color-violet-500: #9277f5;
+  --color-violet-600: #b3a1ff;
+  --color-violet-700: #c9bbff;
+  --color-violet-800: #ddd3ff;
+  --color-violet-900: #eee9ff;
+  --color-violet-950: #f7f4ff;
+
+  --color-emerald-50: #0b2422;
+  --color-emerald-100: #0f302c;
+  --color-emerald-200: #17463e;
+  --color-emerald-300: #1f6d5a;
+  --color-emerald-400: #3fd69b;
+  --color-emerald-500: #22c58b;
+  --color-emerald-600: #5ee0a6;
+  --color-emerald-700: #7fe9bb;
+  --color-emerald-800: #b1f3d3;
+  --color-emerald-900: #d8fbe9;
+
+  --color-rose-50: #2a0f20;
+  --color-rose-100: #3a142b;
+  --color-rose-200: #5a1f40;
+  --color-rose-300: #8a2f5c;
+  --color-rose-400: #fb7f9a;
+  --color-rose-500: #f4577a;
+  --color-rose-600: #fb7f9a;
+  --color-rose-700: #fda4b8;
+  --color-rose-800: #fecdd8;
+  --color-rose-900: #ffe4ea;
+
+  --color-red-50: #2a0f20;
+  --color-red-100: #3a142b;
+  --color-red-200: #5a1f40;
+  --color-red-600: #fb7f9a;
+  --color-red-700: #fda4b8;
+  --color-red-800: #fecdd8;
+
+  --color-amber-50: #2a1f0c;
+  --color-amber-100: #382a10;
+  --color-amber-200: #594217;
+  --color-amber-300: #8a6620;
+  --color-amber-400: #fbc34a;
+  --color-amber-500: #f5a524;
+  --color-amber-600: #fbc34a;
+  --color-amber-700: #fcd672;
+  --color-amber-800: #fde69c;
+  --color-amber-900: #fef3c7;
+}
+
+html {
+  background: var(--c-void);
 }
 
 body {
-  background-color: var(--bg-app);
-  color: var(--ink);
+  background: var(--c-void);
+  color: var(--c-ink);
   font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
 
-h1, h2, h3, h4, .font-display {
-  font-family: var(--font-display);
+::selection {
+  background: rgba(224, 97, 159, 0.4);
+  color: #fff;
 }
 
-/* Glassmorphism utilities */
-.glass {
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(228, 226, 239, 0.9);
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--c-pink);
+  outline-offset: 3px;
 }
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-cosmic);
+button:not(:disabled),
+select:not(:disabled) {
+  cursor: pointer;
 }
-
-.cosmic-btn-primary {
-  background: var(--primary);
-  color: #ffffff;
-  border-radius: 999px;
-  padding-inline: 1.1em;
-  transition: background-color 0.15s ease, transform 0.15s ease;
-  font-family: var(--font-display);
-  font-weight: 700;
+button:disabled {
+  cursor: not-allowed;
 }
-
-.cosmic-btn-primary:hover {
-  background: var(--primary-hover);
-}
-
-.cosmic-btn-ghost {
-  background: #ffffff;
-  color: var(--ink);
-  border: 1.5px solid var(--line-accent);
-  border-radius: 999px;
-  padding-inline: 1.1em;
-  font-family: var(--font-display);
-  font-weight: 700;
-  transition: border-color 0.15s ease;
-}
-.cosmic-btn-ghost:hover { border-color: var(--primary); }
-
-:where(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
-button:not(:disabled), select:not(:disabled) { cursor: pointer; }
-button:disabled { cursor: not-allowed; }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
-}
-
 * {
-  border-color: var(--line);
+  border-color: var(--c-line);
+}
+
+select option {
+  background: var(--c-panel);
+  color: var(--c-ink);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--c-magenta);
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--line-accent);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
+  background: rgba(247, 168, 207, 0.4);
 }
 
-::selection {
-  background: var(--accent-soft);
-  color: var(--primary-hover);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Shared cosmos primitives ───────────────────────────────────────── */
+
+.c-serif {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.c-mono {
+  font-family: var(--font-mono);
+}
+
+.c-nebula-text {
+  background: linear-gradient(100deg, #ffd3ea 0%, #ef7bb4 30%, #b594ff 65%, #93b6ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.c-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--c-pink);
+}
+
+.c-panel {
+  background-color: rgba(14, 16, 48, 0.72);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-xl);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 30px 60px -40px rgba(0, 0, 0, 0.9);
+}
+
+.c-panel-hover {
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+.c-panel-hover:hover {
+  border-color: rgba(247, 168, 207, 0.35);
+  background-color: rgba(20, 23, 60, 0.8);
+}
+
+.c-glass {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--c-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 40px 90px -40px rgba(0, 0, 0, 0.85);
+}
+
+.c-input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--c-line-strong);
+  background: rgba(5, 7, 26, 0.6);
+  padding: 0.6rem 0.85rem;
+  font-size: 14px;
+  color: var(--c-ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.c-input::placeholder {
+  color: var(--c-faint);
+}
+.c-input:focus {
+  outline: none;
+  border-color: rgba(247, 168, 207, 0.6);
+  box-shadow: 0 0 0 3px rgba(224, 97, 159, 0.18);
+}
+.c-input:disabled {
+  opacity: 0.55;
+}
+.c-input[type="file"] {
+  padding: 0.45rem;
+  color: var(--c-dim);
+}
+.c-input[type="file"]::file-selector-button {
+  margin-right: 0.75rem;
+  border: 1px solid var(--c-line-strong);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--c-ink);
+  padding: 0.4rem 0.8rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.c-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-dim);
+}
+
+.c-btn-primary,
+.c-btn-ghost,
+.c-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 1.25rem;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: transform 0.2s ease, box-shadow 0.3s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+.c-btn-primary {
+  color: #140a2e;
+  background: linear-gradient(180deg, #ffffff 0%, #eadfff 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 10px 34px -12px rgba(224, 97, 159, 0.75),
+    0 0 70px -28px rgba(146, 119, 245, 0.9);
+}
+.c-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 14px 44px -10px rgba(224, 97, 159, 0.95),
+    0 0 100px -24px rgba(146, 119, 245, 1);
+}
+.c-btn-ghost {
+  font-weight: 500;
+  color: var(--c-ink);
+  border: 1px solid var(--c-line-strong);
+  background: rgba(255, 255, 255, 0.04);
+}
+.c-btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.c-btn-danger {
+  font-weight: 500;
+  color: #fda4b8;
+  border: 1px solid rgba(251, 127, 154, 0.35);
+  background: rgba(251, 127, 154, 0.08);
+}
+.c-btn-danger:hover:not(:disabled) {
+  background: rgba(251, 127, 154, 0.16);
+}
+.c-btn-primary:disabled,
+.c-btn-ghost:disabled,
+.c-btn-danger:disabled {
+  opacity: 0.45;
+}
+.c-btn-sm {
+  min-height: 36px;
+  padding: 0 0.9rem;
+  font-size: 13px;
+}
+
+.c-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--c-line);
+  padding: 0.2rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--c-dim);
+  white-space: nowrap;
+}
+
+.c-tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--c-line);
+  background: rgba(5, 7, 26, 0.55);
+}
+.c-tab {
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 0 0.95rem;
+  font-size: 13px;
+  color: var(--c-dim);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.c-tab:hover {
+  color: #fff;
+}
+.c-tab[aria-pressed="true"],
+.c-tab[aria-selected="true"] {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.c-skeleton {
+  border-radius: var(--r-lg);
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.04) 30%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0.04) 70%);
+  background-size: 300% 100%;
+  animation: c-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes c-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+.c-pulse {
+  animation: c-pulse 2.2s ease-in-out infinite;
+}
+@keyframes c-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(247, 168, 207, 0.7); }
+  50% { box-shadow: 0 0 0 6px rgba(247, 168, 207, 0); }
+}
+
+.c-fade-in {
+  animation: c-fade-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes c-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.c-backdrop {
+  background-color: var(--c-void);
+  background-image:
+    radial-gradient(ellipse 55% 42% at 82% 4%, rgba(146, 119, 245, 0.26), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 8% 96%, rgba(224, 97, 159, 0.22), transparent 70%),
+    linear-gradient(32deg, transparent 32%, rgba(224, 97, 159, 0.07) 46%, rgba(146, 119, 245, 0.1) 54%, transparent 68%),
+    radial-gradient(ellipse 80% 60% at 50% 50%, rgba(91, 116, 232, 0.06), transparent 75%);
+}
+.c-stars {
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, rgba(255, 255, 255, 0.8), transparent 60%),
+    radial-gradient(1px 1px at 140px 90px, rgba(255, 230, 245, 0.7), transparent 60%),
+    radial-gradient(1.4px 1.4px at 230px 180px, rgba(255, 255, 255, 0.9), transparent 60%),
+    radial-gradient(1px 1px at 80px 220px, rgba(210, 225, 255, 0.6), transparent 60%),
+    radial-gradient(1px 1px at 290px 40px, rgba(255, 255, 255, 0.5), transparent 60%);
+  background-size: 320px 260px;
+  opacity: 0.55;
+}
+.c-stars-far {
+  background-image:
+    radial-gradient(0.8px 0.8px at 50px 70px, rgba(255, 255, 255, 0.6), transparent 60%),
+    radial-gradient(0.8px 0.8px at 170px 20px, rgba(255, 255, 255, 0.5), transparent 60%),
+    radial-gradient(1.8px 1.8px at 120px 160px, rgba(255, 220, 240, 0.9), transparent 60%),
+    radial-gradient(0.8px 0.8px at 10px 150px, rgba(200, 215, 255, 0.5), transparent 60%);
+  background-size: 210px 190px;
+  opacity: 0.45;
+}
+
+/* Workflow canvas (React Flow) — themed through its CSS variables */
+.zircon-flow .react-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke: rgba(247, 168, 207, 0.5);
+  --xy-edge-stroke-selected: #f7a8cf;
+  --xy-connectionline-stroke: #f7a8cf;
+  --xy-controls-button-background-color: rgba(14, 16, 48, 0.92);
+  --xy-controls-button-background-color-hover: rgba(30, 33, 80, 0.95);
+  --xy-controls-button-color: #f5f0ff;
+  --xy-controls-button-border-color: rgba(255, 255, 255, 0.1);
+}
+.zircon-flow .react-flow,
+.zircon-flow .react-flow__background {
+  background-color: transparent;
+}
+.zircon-flow .react-flow__edge-path {
+  stroke: rgba(247, 168, 207, 0.5);
+  stroke-width: 1.5;
+}
+.zircon-flow .react-flow__edge.selected .react-flow__edge-path {
+  stroke: #f7a8cf;
 }

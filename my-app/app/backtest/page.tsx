@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import type { BacktestReport, Market, MarketType } from "@/lib/backtest";
 import dynamic from "next/dynamic";
-const EquityCurve = dynamic(() => import("@/components/backtest/equity-curve"), { ssr: false });
+import { FileJson, FileSpreadsheet, FlaskConical, Save } from "lucide-react";
+import { Notice, PageHeader, PageShell, StatTile } from "@/components/ui/page";
+import Skeleton from "@/components/ui/skeleton";
+const EquityCurve = dynamic(() => import("@/components/backtest/equity-curve"), { ssr: false, loading: () => <Skeleton className="h-80" /> });
 export default function BacktestPage() {
   const { status } = useSession();
   const [csv, setCsv] = useState(""); const [filename, setFilename] = useState("");
@@ -38,25 +41,125 @@ export default function BacktestPage() {
         const { analyzeBacktest } = await import("@/lib/backtest");
         setReport(analyzeBacktest(input));
       }
-    } catch (e) { setError(e instanceof Error ? e.message : "Analysis failed."); }
+    } catch (e) {
+      const issue = (e as { issues?: { message: string }[] })?.issues?.[0]?.message;
+      setError(issue ?? (e instanceof Error ? e.message : "Analysis failed."));
+    }
     finally { setBusy(false); }
   }
   const metrics = report?.csvAnalysis;
-  return <main className="mx-auto max-w-6xl space-y-8 px-5 py-10">
-    <div><h1 className="text-3xl font-semibold tracking-tight">Backtest</h1><p className="mt-3 max-w-2xl text-slate-600">Inspect exported trades and compare signals with historical prediction-market prices. Uploaded data is not independently verified. Past returns do not predict future results.</p></div>
-    <section className="grid gap-6 rounded-lg border border-slate-200 bg-white p-6 md:grid-cols-2">
-      <div className="space-y-3"><label htmlFor="signals-csv" className="block font-medium">TradingView or signal CSV</label><input id="signals-csv" type="file" accept=".csv,text/csv" disabled={busy} onChange={e => { if (e.target.files?.[0]) void load(e.target.files[0], "csv"); }} className="block w-full text-sm" /><p className="text-xs text-slate-500">{filename || "Up to 1 MB and 5,000 lines. Use UTC timestamps."}</p><button disabled={busy} className="text-sm text-violet-700 underline" onClick={async () => { setBusy(true); try { const res = await fetch("/sample-strategy.csv"); if (!res.ok) throw new Error("Sample unavailable"); setCsv(await res.text()); setFilename("Sample strategy"); setReport(null); } catch { setError("Sample unavailable."); } finally { setBusy(false); } }}>Load sample CSV</button></div>
-      <div className="space-y-3"><label htmlFor="market-history" className="block font-medium">Historical market JSON (optional)</label><input id="market-history" type="file" accept=".json,application/json" disabled={busy} onChange={e => { if (e.target.files?.[0]) void load(e.target.files[0], "markets"); }} className="block w-full text-sm" /><p className="text-xs leading-5 text-slate-500">{markets.length} markets loaded. Without history, only CSV trade metrics are analyzed. No Polymarket returns are inferred.</p></div>
-      <label className="text-sm">Market window<select value={timeframe} onChange={e => { setTimeframe(e.target.value as MarketType); setReport(null); }} className="mt-2 block w-full rounded-lg border bg-white p-3">{["15m", "1h", "4h", "1d", "all"].map(t => <option key={t}>{t}</option>)}</select></label>
-      <label className="text-sm">Simulated stake per matched signal (USD)<input type="number" min="0.01" max="10000" step="0.01" value={stake} onChange={e => { setStake(e.target.value); setReport(null); }} className="mt-2 block w-full rounded-lg border bg-white p-3" /></label>
-      <div className="flex flex-wrap gap-3"><button onClick={() => run(false)} disabled={busy || !csv} className="cosmic-btn-primary px-5 py-3 text-sm disabled:opacity-50">{busy ? "Analyzing…" : "Analyze locally"}</button>{status === "authenticated" && <button onClick={() => run(true)} disabled={busy || !csv} className="rounded-lg border px-5 py-3 text-sm disabled:opacity-50">Analyze and save</button>}</div>
-    </section>
-    {error && <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</p>}{notice && <p role="status" className="text-sm text-violet-700">{notice}</p>}
-    {report && <div className="space-y-7">
-      <section><h2 className="text-lg font-semibold">CSV trade results</h2>{metrics ? <dl className="mt-4 grid grid-cols-2 gap-6 sm:grid-cols-4">{[["Closed trades", metrics.trades], ["Win rate", (metrics.winRate * 100).toFixed(1) + "%"], ["Reported P&L", metrics.totalPnl.toFixed(2)], ["Max drawdown", metrics.maxDrawdown.toFixed(2)]].map(([name, value]) => <div key={name}><dt className="text-sm text-slate-500">{name}</dt><dd className="mt-1 text-2xl font-semibold tabular-nums">{value}</dd></div>)}</dl> : <p className="mt-3 text-sm text-slate-600">No paired closed trades with P&L found. Parsed {report.signalCount} directional signals.</p>}</section>
-      <section className="border-t border-slate-200 pt-6"><h2 className="text-lg font-semibold">Historical Polymarket comparison</h2><p className="mt-3 text-sm text-slate-600">{report.summary.trades} matched trades from {report.signalCount} signals. {report.marketsCoverage.withHistory} markets with history. {report.fallbackUsed ? "The selected timeframe had no matches; all available timeframes were used." : ""}</p>
-        {report.matched.length > 0 ? <><p className="mt-3 text-sm">Simulated P&L: {report.summary.totalPnlUsd.toFixed(2)} USD. Excludes fees, slippage and executable depth.</p><div className="mt-5"><EquityCurve stakeUsd={Number(stake)} data={report.matched.map((t, i) => ({ index: i, tradeNum: i + 1, dt: new Date(t.dtUtc * 1000).toISOString(), pnl: t.tokenPnl * Number(stake), cumulativePnl: report.equity[i] * Number(stake), isWin: t.result === "WIN" }))} /></div></> : <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">No historical matches. Import history covering the signals; zero coverage is not a zero-return strategy.</p>}
-      </section><Link href="/bots" className="inline-block text-sm text-violet-700 underline">Build a workflow from your research</Link>
-    </div>}
-  </main>;
+  async function loadSample() {
+    setBusy(true);
+    try {
+      const res = await fetch("/sample-strategy.csv");
+      if (!res.ok) throw new Error("Sample unavailable");
+      setCsv(await res.text()); setFilename("Sample strategy"); setReport(null);
+    } catch { setError("Sample unavailable."); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <PageShell>
+      <PageHeader
+        eyebrow="Backtest"
+        title="Flight"
+        accent="simulator."
+        description="Replay exported trades and compare your signals against historical prediction-market prices. Uploaded data isn't independently verified, and past returns don't predict future results."
+      />
+
+      <section className="c-panel p-6 sm:p-8">
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+            <div className="flex items-center gap-3">
+              <FileSpreadsheet className="h-5 w-5 text-[var(--c-pink)]" />
+              <label htmlFor="signals-csv" className="font-medium text-white">TradingView or signal CSV</label>
+            </div>
+            <input id="signals-csv" type="file" accept=".csv,text/csv" disabled={busy} onChange={e => { if (e.target.files?.[0]) void load(e.target.files[0], "csv"); }} className="c-input mt-4" />
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-[var(--c-faint)]">{filename ? <span className="text-[var(--c-up)]">Loaded: {filename}</span> : "Up to 1 MB and 5,000 lines. UTC timestamps."}</p>
+              <button disabled={busy} className="text-sm text-[var(--c-pink)] hover:underline" onClick={() => void loadSample()}>Load sample CSV</button>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+            <div className="flex items-center gap-3">
+              <FileJson className="h-5 w-5 text-[var(--c-pink)]" />
+              <label htmlFor="market-history" className="font-medium text-white">Historical market JSON <span className="text-[var(--c-faint)]">(optional)</span></label>
+            </div>
+            <input id="market-history" type="file" accept=".json,application/json" disabled={busy} onChange={e => { if (e.target.files?.[0]) void load(e.target.files[0], "markets"); }} className="c-input mt-4" />
+            <p className="mt-3 text-xs leading-relaxed text-[var(--c-faint)]">{markets.length} markets loaded. Without history, only CSV trade metrics are analyzed.</p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-5 md:grid-cols-2">
+          <label className="block">
+            <span className="c-label">Market window</span>
+            <select value={timeframe} onChange={e => { setTimeframe(e.target.value as MarketType); setReport(null); }} className="c-input">
+              {["15m", "1h", "4h", "1d", "all"].map(t => <option key={t}>{t}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="c-label">Simulated stake per matched signal (USD)</span>
+            <input type="number" min="0.01" max="10000" step="0.01" value={stake} onChange={e => { setStake(e.target.value); setReport(null); }} className="c-input" />
+          </label>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-2 border-t border-white/10 pt-6">
+          <button onClick={() => run(false)} disabled={busy || !csv} className="c-btn-primary">
+            <FlaskConical className="h-4 w-4" /> {busy ? "Analyzing…" : "Analyze locally"}
+          </button>
+          {status === "authenticated" && (
+            <button onClick={() => run(true)} disabled={busy || !csv} className="c-btn-ghost">
+              <Save className="h-4 w-4" /> Analyze and save
+            </button>
+          )}
+        </div>
+      </section>
+
+      <div className="mt-5 space-y-3">
+        {error && <Notice tone="error">{error}</Notice>}
+        {notice && <Notice tone="success">{notice}</Notice>}
+      </div>
+
+      {report && (
+        <div className="c-fade-in mt-8 space-y-6">
+          <section>
+            <h2 className="c-serif text-4xl text-white">CSV trade results</h2>
+            {metrics ? (
+              <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                <StatTile label="Closed trades" value={metrics.trades} />
+                <StatTile label="Win rate" value={`${(metrics.winRate * 100).toFixed(1)}%`} tone="accent" />
+                <StatTile label="Reported P&L" value={metrics.totalPnl.toFixed(2)} tone={metrics.totalPnl >= 0 ? "good" : "bad"} />
+                <StatTile label="Max drawdown" value={metrics.maxDrawdown.toFixed(2)} />
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-[var(--c-dim)]">No paired closed trades with P&amp;L found. Parsed {report.signalCount} directional signals.</p>
+            )}
+          </section>
+
+          <section className="c-panel p-6 sm:p-8">
+            <h2 className="c-serif text-4xl text-white">Polymarket comparison</h2>
+            <p className="mt-2 text-sm text-[var(--c-dim)]">
+              {report.summary.trades} matched trades from {report.signalCount} signals · {report.marketsCoverage.withHistory} markets with history.
+              {report.fallbackUsed ? " The selected timeframe had no matches, so all available timeframes were used." : ""}
+            </p>
+            {report.matched.length > 0 ? (
+              <>
+                <p className="mt-3 text-sm text-white">
+                  Simulated P&amp;L: <span className={report.summary.totalPnlUsd >= 0 ? "text-[var(--c-up)]" : "text-[var(--c-down)]"}>{report.summary.totalPnlUsd.toFixed(2)} USD</span>
+                  <span className="text-[var(--c-faint)]"> · excludes fees, slippage and executable depth</span>
+                </p>
+                <div className="mt-6">
+                  <EquityCurve stakeUsd={Number(stake)} data={report.matched.map((t, i) => ({ index: i, tradeNum: i + 1, dt: new Date(t.dtUtc * 1000).toISOString(), pnl: t.tokenPnl * Number(stake), cumulativePnl: report.equity[i] * Number(stake), isWin: t.result === "WIN" }))} />
+                </div>
+              </>
+            ) : (
+              <div className="mt-4"><Notice tone="warning">No historical matches. Import history covering the signals — zero coverage is not a zero-return strategy.</Notice></div>
+            )}
+          </section>
+
+          <Link href="/bots" className="c-btn-ghost">Build a bot from this research →</Link>
+        </div>
+      )}
+    </PageShell>
+  );
 }

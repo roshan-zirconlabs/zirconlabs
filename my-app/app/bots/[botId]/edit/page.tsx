@@ -1,7 +1,7 @@
 "use client";
 
 import { Provider as JotaiProvider, useAtom } from "jotai";
-import { ArrowLeft, ExternalLink, Loader2, Play, Save } from "lucide-react";
+import { ArrowLeft, ExternalLink, ListChecks, Loader2, Play, Save } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useState } from "react";
@@ -169,20 +169,24 @@ function BotEditorInner({
 
   if (status === "loading" || loading) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-8">
-        <Skeleton className="h-8 w-64 mb-4" />
-        <Skeleton className="h-[500px] w-full" />
+      <div className="mx-auto max-w-7xl px-5 pt-6">
+        <Skeleton className="h-14 w-full !rounded-full" />
+        <Skeleton className="mt-4 h-[70vh] w-full" />
       </div>
     );
   }
 
+  const iconBtn =
+    "hidden h-9 items-center gap-1.5 rounded-full border border-white/12 px-3 text-xs text-[var(--c-dim)] transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40 sm:inline-flex";
+
   return (
-    <div className="flex h-[calc(100vh-3rem)] w-full flex-col">
-      <div className="flex items-center justify-between border-b border-[var(--line)] bg-[var(--white)] px-4 py-2">
-        <div className="flex items-center gap-3 min-w-0">
+    <div className="mx-auto flex h-[calc(100dvh-4.25rem)] w-full max-w-[1600px] flex-col px-3 pb-3 pt-3">
+      <div className="c-panel flex flex-wrap items-center justify-between gap-2 !rounded-2xl px-3 py-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
             onClick={() => router.push(`/bots/${botId}`)}
-            className="rounded-[var(--r)] p-1.5 text-[var(--muted)] hover:bg-[var(--line2)] hover:text-[var(--ink)]"
+            aria-label="Back to bot"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[var(--c-dim)] hover:bg-white/10 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
@@ -192,11 +196,27 @@ function BotEditorInner({
               setName(e.target.value);
               setDirty(true);
             }}
+            aria-label="Workflow name"
             placeholder="Workflow name"
-            className="min-w-0 flex-1 rounded-[var(--r)] bg-transparent px-2 py-1 text-sm font-semibold text-[var(--ink)] outline-none focus:bg-[var(--line2)]"
+            className="c-serif min-w-0 flex-1 rounded-xl bg-transparent px-2 py-1 text-2xl text-white outline-none hover:bg-white/5 focus:bg-white/5"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {dirty && (
+            <span className="c-chip border-amber-300/40 text-amber-700">
+              Unsaved <kbd className="opacity-70">⌘S</kbd>
+            </span>
+          )}
+          <Link href={`/bots/${botId}/guided`} className={iconBtn}>
+            <ListChecks className="h-3.5 w-3.5" /> Guided setup
+          </Link>
+          <Link href="/markets" target="_blank" className={iconBtn}>
+            Markets <ExternalLink className="h-3 w-3" />
+          </Link>
+          <button onClick={runOnce} disabled={dirty || running || !workflowId} title={dirty ? "Save first" : "Fire the trigger once"} className={iconBtn}>
+            {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+            Test run
+          </button>
           <ActivationControl
             botId={botId}
             status={botStatus}
@@ -208,60 +228,14 @@ function BotEditorInner({
               setWfId(next.keeperhubWorkflowId);
             }}
           />
-          <Link
-            href={`/bots/${botId}/guided`}
-            className="hidden items-center gap-1 rounded-[var(--r)] border border-[var(--line)] px-2 py-1 text-[11px] text-[var(--muted)] hover:bg-[var(--line2)] hover:text-[var(--ink)] sm:inline-flex"
-          >
-            Guided setup
-          </Link>
-          <Link
-            href="/markets"
-            target="_blank"
-            className="hidden items-center gap-1 rounded-[var(--r)] px-2 py-1 text-[11px] text-[var(--muted)] hover:bg-[var(--line2)] hover:text-[var(--ink)] sm:inline-flex"
-          >
-            Markets
-            <ExternalLink className="h-3 w-3" />
-          </Link>
-          <button
-            onClick={runOnce}
-            disabled={dirty || running || !workflowId}
-            title={dirty ? "Save first" : "Fire the trigger once"}
-            className="hidden items-center gap-1 rounded-[var(--r)] border border-[var(--line)] px-2 py-1 text-[11px] text-[var(--muted)] hover:bg-[var(--line2)] hover:text-[var(--ink)] disabled:opacity-40 sm:inline-flex"
-          >
-            {running ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Play className="h-3 w-3" />
-            )}
-            Test run
-          </button>
-          {dirty && (
-            <span className="text-[11px] text-[var(--muted)]">
-              Unsaved <span className="opacity-60">⌘S</span>
-            </span>
-          )}
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={save}
-            disabled={saving || !dirty}
-          >
-            {saving ? (
-              <>
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                Saving
-              </>
-            ) : (
-              <>
-                <Save className="mr-1.5 h-3.5 w-3.5" />
-                Save
-              </>
-            )}
+          <Button variant="primary" size="sm" onClick={save} disabled={saving || !dirty}>
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            {saving ? "Saving" : "Save"}
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0">
+      <div className="c-panel mt-3 flex min-h-0 flex-1 overflow-hidden !rounded-2xl">
         <div className="flex-1 min-w-0">
           <WorkflowCanvas />
         </div>

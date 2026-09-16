@@ -88,7 +88,6 @@ export default function NodeConfigPanel() {
           source: i.source,
           target: o.target,
           type: "smoothstep",
-          animated: !isAddTarget,
           ...(isAddTarget ? { style: { strokeDasharray: "4 4" } } : {}),
         };
       }),
@@ -141,8 +140,8 @@ export default function NodeConfigPanel() {
 
   if (!selected) {
     return (
-      <aside className="flex h-full w-80 flex-col border-l border-[var(--line)] bg-[var(--white)]">
-        <div className="border-b border-[var(--line)] px-4 py-3">
+      <aside className="flex h-full w-80 shrink-0 flex-col border-l border-white/10 bg-[rgba(10,12,36,0.94)]">
+        <div className="border-b border-white/10 px-5 py-4">
           <div className="text-sm font-semibold text-[var(--ink)]">
             Properties
           </div>
@@ -176,10 +175,10 @@ export default function NodeConfigPanel() {
   }
 
   return (
-    <aside className="flex h-full w-80 flex-col border-l border-[var(--line)] bg-[var(--white)]">
-      <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
+    <aside className="flex h-full w-80 shrink-0 flex-col border-l border-white/10 bg-[rgba(10,12,36,0.94)]">
+      <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
         <div className="min-w-0">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
+          <div className="c-eyebrow">
             {isTrigger ? "Trigger" : "Action"}
           </div>
           <div className="truncate text-sm font-semibold text-[var(--ink)]">
@@ -188,26 +187,27 @@ export default function NodeConfigPanel() {
         </div>
         <button
           onClick={() => setSelectedId(null)}
-          className="rounded-[var(--r)] p-1 text-[var(--muted)] hover:bg-[var(--line2)]"
+          aria-label="Close properties"
+          className="grid h-8 w-8 place-items-center rounded-full text-[var(--muted)] hover:bg-white/10 hover:text-white"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="flex-1 overflow-y-auto px-5 py-5">
         <Field label="Step name">
           <input
             value={selected.data.label ?? ""}
             onChange={(e) => updateLabel(e.target.value)}
             placeholder={typeLabel}
-            className="w-full rounded-[var(--r)] border border-[var(--line)] bg-[var(--white)] px-2 py-1.5 text-sm outline-none focus:border-[var(--ink)]"
+            className="c-input !min-h-10 !py-2"
           />
         </Field>
 
         <ActiveMarketPreview config={selected.data.config ?? {}} />
 
         {!isTrigger && paperOnly && (
-          <div role="status" className="mb-4 rounded-[var(--r)] border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+          <div role="status" className="mb-4 rounded-xl border border-amber-300/40 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
             Paper demo only. This local Polymarket action is not a KeeperHub-hosted action and cannot be published for live execution yet.
           </div>
         )}
@@ -219,7 +219,7 @@ export default function NodeConfigPanel() {
               onChange={(e) => {
                 updateConfig("triggerType", e.target.value);
               }}
-              className="w-full rounded-[var(--r)] border border-[var(--line)] bg-[var(--white)] px-2 py-1.5 text-sm outline-none focus:border-[var(--ink)]"
+              className="c-input !min-h-10 !py-2"
             >
               {TRIGGERS.map((t) => (
                 <option key={t.triggerType} value={t.triggerType}>
@@ -241,7 +241,7 @@ export default function NodeConfigPanel() {
       </div>
 
       {!isTrigger && (
-        <div className="border-t border-[var(--line)] p-3">
+        <div className="border-t border-white/10 p-4">
           <Button
             variant="danger"
             size="sm"
@@ -277,7 +277,7 @@ function ActiveMarketPreview({ config }: { config: Record<string, unknown> }) {
   return (
     <div
       key={tick}
-      className="mb-4 rounded-[var(--r)] border border-[var(--line)] bg-[var(--line2)] px-3 py-2"
+      className="mb-4 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5"
     >
       <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
         <Activity className="h-3 w-3" />
@@ -306,7 +306,7 @@ function Field({
 }) {
   return (
     <div className={cn("mb-4", className)}>
-      <label className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+      <label className="c-label">
         {label}
       </label>
       {children}
@@ -326,8 +326,7 @@ function FieldRenderer({
   value: unknown;
   onChange: (v: unknown) => void;
 }) {
-  const inputCls =
-    "w-full rounded-[var(--r)] border border-[var(--line)] bg-[var(--white)] px-2 py-1.5 text-sm outline-none focus:border-[var(--ink)]";
+  const inputCls = "c-input !min-h-10 !py-2";
 
   return (
     <Field label={field.label} description={field.description}>
@@ -374,7 +373,7 @@ function FieldRenderer({
             type="checkbox"
             checked={Boolean(value)}
             onChange={(e) => onChange(e.target.checked)}
-            className="h-4 w-4 rounded border-[var(--line)]"
+            className="h-4 w-4"
           />
           <span className="text-xs text-[var(--muted)]">
             {field.placeholder ?? "Enabled"}

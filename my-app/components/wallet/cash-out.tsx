@@ -75,22 +75,21 @@ export default function CashOut({ balance, onChanged }: { balance: number; onCha
   if (!hasContent) return null;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-7">
-      <h2 className="text-base font-semibold text-slate-900">Cash out</h2>
+    <section className="c-panel p-6 sm:p-8">
+      <h2 className="c-serif text-3xl text-white">Cash out</h2>
 
       {redeemable.length > 0 && (
-        <div className="mt-4 space-y-2">
+        <div className="mt-5 space-y-2">
           {redeemable.map(p => (
-            <div key={p.conditionId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3">
-              <span className="flex min-w-0 items-center gap-2 text-sm">
-                <Sparkles className="h-4 w-4 shrink-0 text-emerald-600" />
+            <div key={p.conditionId} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300/40 bg-emerald-50 px-4 py-3">
+              <span className="flex min-w-0 items-center gap-3 text-sm">
+                <Sparkles className="h-4 w-4 shrink-0 text-[var(--c-up)]" />
                 <span className="min-w-0">
-                  <span className="block truncate font-medium text-slate-900">{p.title ?? "Resolved market"}</span>
-                  <span className="block text-xs text-slate-500">{p.size.toFixed(2)} winning shares</span>
+                  <span className="block truncate font-medium text-white">{p.title ?? "Resolved market"}</span>
+                  <span className="block text-xs text-[var(--c-dim)]">{p.size.toFixed(2)} winning shares</span>
                 </span>
               </span>
-              <button onClick={() => void redeem(p)} disabled={busy !== null}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white disabled:opacity-50">
+              <button onClick={() => void redeem(p)} disabled={busy !== null} className="c-btn-primary c-btn-sm">
                 {busy === p.conditionId && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Claim
               </button>
@@ -99,40 +98,37 @@ export default function CashOut({ balance, onChanged }: { balance: number; onCha
         </div>
       )}
 
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
-        <label className="flex-1 text-sm">
-          <span className="mb-1.5 block text-xs font-medium text-slate-600">Send to address</span>
-          <input value={destination} onChange={e => setDestination(e.target.value)} placeholder="0x…" spellCheck={false}
-            className="w-full rounded-lg border border-slate-300 p-2.5 font-mono text-sm focus:border-violet-400 focus:outline-none" />
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <label className="flex-1">
+          <span className="c-label">Send to address</span>
+          <input value={destination} onChange={e => setDestination(e.target.value)} placeholder="0x…" spellCheck={false} className="c-input c-mono" />
         </label>
-        <label className="text-sm sm:w-36">
-          <span className="mb-1.5 block text-xs font-medium text-slate-600">Amount</span>
-          <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="All" inputMode="decimal"
-            className="w-full rounded-lg border border-slate-300 p-2.5 text-sm focus:border-violet-400 focus:outline-none" />
+        <label className="sm:w-36">
+          <span className="c-label">Amount</span>
+          <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="All" inputMode="decimal" className="c-input" />
         </label>
-        <button onClick={() => void withdraw()} disabled={busy !== null || !destination.trim() || balance <= 0}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40">
+        <button onClick={() => void withdraw()} disabled={busy !== null || !destination.trim() || balance <= 0} className="c-btn-ghost">
           {busy === "withdraw" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpRight className="h-4 w-4" />}
           Withdraw
         </button>
       </div>
-      <p className="mt-2 text-xs text-slate-500">Leave amount blank to send your full balance. Transfers on Polygon can&rsquo;t be reversed.</p>
+      <p className="mt-2.5 text-xs text-[var(--c-faint)]">Leave amount blank to send your full balance. Transfers on Polygon can&rsquo;t be reversed.</p>
 
       {history.length > 0 && (
-        <div className="mt-5 space-y-1.5 border-t border-slate-100 pt-4">
+        <ul className="mt-6 divide-y divide-white/5 rounded-2xl border border-white/10">
           {history.slice(0, 4).map(w => (
-            <div key={w.id} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-              <span className="font-mono">{w.destination.slice(0, 8)}…{w.destination.slice(-6)}</span>
-              <span className="tabular-nums">{w.amountUsd.toFixed(2)}</span>
-              <span className={w.status === "SENT" ? "text-emerald-700" : w.status === "FAILED" ? "text-rose-700" : "text-amber-700"}>{w.status.toLowerCase()}</span>
-              {w.explorerUrl ? <a href={w.explorerUrl} target="_blank" rel="noopener noreferrer" className="underline">view</a> : <span />}
-            </div>
+            <li key={w.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-xs text-[var(--c-dim)]">
+              <span className="c-mono">{w.destination.slice(0, 8)}…{w.destination.slice(-6)}</span>
+              <span className="c-mono">${w.amountUsd.toFixed(2)}</span>
+              <span className={w.status === "SENT" ? "text-[var(--c-up)]" : w.status === "FAILED" ? "text-[var(--c-down)]" : "text-amber-700"}>{w.status.toLowerCase()}</span>
+              {w.explorerUrl ? <a href={w.explorerUrl} target="_blank" rel="noopener noreferrer" className="text-[var(--c-pink)] hover:underline">View</a> : <span />}
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
-      {notice && <p role="status" className="mt-4 text-sm text-violet-700">{notice}</p>}
-      {error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}
-    </div>
+      {notice && <p role="status" className="mt-4 text-sm text-[var(--c-up)]">{notice}</p>}
+      {error && <p role="alert" className="mt-4 text-sm text-rose-700">{error}</p>}
+    </section>
   );
 }

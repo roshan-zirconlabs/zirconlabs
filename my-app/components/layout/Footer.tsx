@@ -1,36 +1,33 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { OrbitMark } from "@/components/brand/OrbitMark";
+
+const LINKS = [
+  ["Dashboard", "/dashboard"],
+  ["Markets", "/markets"],
+  ["Backtest", "/backtest"],
+  ["Plans", "/billing"],
+];
 
 export default function Footer() {
-  return (
-    <footer className="border-t border-purple-100 bg-white/70 backdrop-blur-md py-6">
-      <div className="mx-auto flex max-w-7xl flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-white font-bold font-mono text-[10px] shadow-xs">
-            ZL
-          </div>
-          <span className="font-bold tracking-tight text-slate-800 text-xs font-mono">
-            ZIRCON LABS
-          </span>
-          <span className="text-[11px] text-slate-400">
-            &copy; {new Date().getFullYear()} · Autonomous Polymarket Workflows via KeeperHub
-          </span>
-        </div>
+  const pathname = usePathname();
+  if (pathname === "/" || pathname.endsWith("/edit")) return null;
 
-        <nav className="flex items-center gap-5 text-xs text-slate-500">
-          <Link href="/dashboard" className="hover:text-purple-700 transition">
-            Dashboard
-          </Link>
-          <Link href="/bots" className="hover:text-purple-700 transition">
-            Bots
-          </Link>
-          <Link href="/markets" className="hover:text-purple-700 transition">
-            Markets
-          </Link>
-          <Link href="/billing" className="hover:text-purple-700 transition">
-            Billing
-          </Link>
+  return (
+    <footer className="mt-16 border-t border-white/10 bg-[rgba(5,7,26,0.6)]">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-7 sm:flex-row">
+        <div className="flex items-center gap-2.5 text-sm text-[var(--c-faint)]">
+          <OrbitMark className="h-6 w-6" />
+          <span>© {new Date().getFullYear()} Zircon Labs · Built on KeeperHub</span>
+        </div>
+        <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+          {LINKS.map(([label, href]) => (
+            <Link key={href} href={href} className="text-[var(--c-dim)] transition-colors hover:text-white">
+              {label}
+            </Link>
+          ))}
         </nav>
       </div>
     </footer>

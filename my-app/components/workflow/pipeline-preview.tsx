@@ -43,12 +43,12 @@ function pipelineSteps(spec: Spec): Step[] {
 }
 
 const toneClass: Record<Step["tone"], string> = {
-  neutral: "border-slate-200 bg-white text-slate-700",
-  live: "border-amber-300 bg-amber-50 text-amber-800",
-  paper: "border-emerald-300 bg-emerald-50 text-emerald-800",
+  neutral: "border-white/10 bg-white/[0.03] text-white",
+  live: "border-amber-300/40 bg-amber-50 text-amber-800",
+  paper: "border-emerald-300/40 bg-emerald-50 text-emerald-800",
 };
 const iconToneClass: Record<Step["tone"], string> = {
-  neutral: "bg-slate-100 text-slate-500",
+  neutral: "bg-white/10 text-[var(--c-pink)]",
   live: "bg-amber-100 text-amber-700",
   paper: "bg-emerald-100 text-emerald-700",
 };
@@ -72,7 +72,7 @@ export default function PipelinePreview({ spec }: { spec: Spec }) {
                   <span className="block text-[11px] leading-tight opacity-80">{step.desc}</span>
                 </span>
               </div>
-              {i < steps.length - 1 && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />}
+              {i < steps.length - 1 && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--c-faint)]" />}
             </div>
           );
         })}

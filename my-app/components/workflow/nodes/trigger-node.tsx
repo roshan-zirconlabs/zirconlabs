@@ -20,24 +20,24 @@ export const TriggerNode = memo(function TriggerNode({
   return (
     <div
       className={cn(
-        "relative flex min-h-[100px] w-[250px] items-center gap-3 rounded-xl border bg-white px-4 py-3 shadow-xs transition-all",
+        "relative flex min-h-[100px] w-[250px] items-center gap-3 rounded-2xl border bg-[#120f34] px-4 py-3 transition-colors",
         selected
-          ? "border-violet-600 ring-3 ring-violet-500/20 shadow-md shadow-violet-500/10"
-          : "border-purple-200/90 hover:border-purple-400 hover:shadow-md",
+          ? "border-[#f7a8cf] shadow-[0_0_0_3px_rgba(224,97,159,0.2),0_0_30px_-6px_rgba(224,97,159,0.5)]"
+          : "border-[rgba(146,119,245,0.45)] hover:border-[rgba(247,168,207,0.6)]",
       )}
     >
-      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-600 text-white shadow-xs">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#e0619f] to-[#5b3fc4] text-white">
         <Icon className="h-5 w-5" strokeWidth={1.75} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-violet-600">
+        <div className="c-mono text-[10px] uppercase tracking-wider text-[var(--c-pink)]">
           Trigger
         </div>
-        <div className="truncate text-xs font-bold text-slate-900">
+        <div className="truncate text-sm font-semibold text-white">
           {title}
         </div>
         {data.description && (
-          <div className="truncate text-[11px] text-slate-500">
+          <div className="truncate text-[11px] text-[var(--c-dim)]">
             {data.description}
           </div>
         )}
@@ -45,7 +45,7 @@ export const TriggerNode = memo(function TriggerNode({
       <Handle
         type="source"
         position={Position.Right}
-        className="!h-2.5 !w-2.5 !border-2 !border-white !bg-violet-600"
+        className="!h-2.5 !w-2.5 !border-2 !border-[#0e1030] !bg-[#f7a8cf]"
       />
     </div>
   );

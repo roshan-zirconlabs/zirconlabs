@@ -1,20 +1,16 @@
 "use client";
 
-import { useEffect, useState, useCallback, use } from "react";
+import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  ExternalLink,
-  Trash2,
-  Copy,
-  Check,
-  Webhook,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Check, Copy, ExternalLink, ListChecks, SlidersHorizontal, Trash2, Webhook } from "lucide-react";
 import ExecutionAuditTrail from "@/components/bots/execution-audit-trail";
 import ActivationControl from "@/components/bots/activation-control";
+import BotAvatar from "@/components/bots/bot-avatar";
+import { BotStatusBadge, PageShell, StatusBadge } from "@/components/ui/page";
+import Skeleton from "@/components/ui/skeleton";
 
 type BotResponse = {
   id: string;
@@ -27,49 +23,38 @@ type BotResponse = {
   _count?: { trades: number };
 };
 
-export default function BotDetailPage({
-  params,
-}: {
-  params: Promise<{ botId: string }>;
-}) {
+export default function BotDetailPage({ params }: { params: Promise<{ botId: string }> }) {
   const { botId } = use(params);
   const { status } = useSession();
   const router = useRouter();
+  const client = useQueryClient();
 
-  const [bot, setBot] = useState<BotResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [patch, setPatch] = useState<Partial<BotResponse>>({});
   const [copied, setCopied] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
+  const query = useQuery({
+    queryKey: ["bot", botId],
+    enabled: status === "authenticated",
+    retry: false,
+    queryFn: async (): Promise<BotResponse> => {
       const res = await fetch(`/api/bots/${botId}`);
-      if (!res.ok) {
-        router.push("/bots");
-        return;
-      }
-      setBot(await res.json());
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [botId, router]);
+      if (!res.ok) throw new Error("Bot not found");
+      return res.json();
+    },
+  });
+  const bot = query.data ? { ...query.data, ...patch } : null;
 
   useEffect(() => {
-    if (status === "authenticated") load();
-    else if (status === "unauthenticated") router.push("/auth/sign-in");
-  }, [status, load, router]);
+    if (status === "unauthenticated") router.push("/auth/sign-in");
+    else if (query.isError) router.push("/bots");
+  }, [status, query.isError, router]);
 
   async function deleteBot() {
-    if (
-      !confirm(
-        "Delete this bot? Its linked KeeperHub workflow will also be removed.",
-      )
-    )
-      return;
+    if (!confirm("Delete this bot? Its linked KeeperHub workflow will also be removed.")) return;
     const res = await fetch(`/api/bots/${botId}`, { method: "DELETE" });
     if (res.ok) {
-      router.push("/dashboard");
+      await client.invalidateQueries({ queryKey: ["bots"] });
+      router.push("/bots");
     }
   }
 
@@ -79,12 +64,18 @@ export default function BotDetailPage({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  if (loading || !bot) {
+  if (!bot) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <div className="h-8 w-48 bg-purple-100/70 rounded-xl animate-pulse mb-4" />
-        <div className="h-44 w-full bg-purple-50/60 rounded-2xl animate-pulse border border-purple-100" />
-      </div>
+      <PageShell>
+        <Skeleton className="h-5 w-28" />
+        <Skeleton className="mt-6 h-16 w-2/3" />
+        <div className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-28" />
+          ))}
+        </div>
+        <Skeleton className="mt-6 h-80" />
+      </PageShell>
     );
   }
 
@@ -93,123 +84,78 @@ export default function BotDetailPage({
   const isWebhookSourced = bot.strategy?.source === "webhook";
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 space-y-6">
-      {/* Back button & Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-purple-100 pb-5">
-        <div className="space-y-1">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-900 transition mb-2 font-medium"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to Dashboard
-          </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              {bot.name}
-            </h1>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${
-                bot.status === "ACTIVE"
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : "bg-slate-100 text-slate-600 border-slate-200"
-              }`}
-            >
-              {bot.status}
-            </span>
-            {mode && (
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                mode === "live" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-purple-50 text-purple-700 border-purple-200"
-              }`}>
-                {mode === "live" ? "LIVE · real money" : "PRACTICE"}
-              </span>
-            )}
+    <PageShell>
+      <Link href="/bots" className="inline-flex items-center gap-1.5 text-sm text-[var(--c-dim)] hover:text-white">
+        ← All bots
+      </Link>
+
+      <div className="c-fade-in mt-6 mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex min-w-0 items-center gap-5">
+          <BotAvatar id={bot.id} active={bot.status === "ACTIVE"} size="lg" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <BotStatusBadge status={bot.status} />
+              {mode && <StatusBadge tone={mode === "live" ? "live" : "practice"}>{mode === "live" ? "Live · real money" : "Practice"}</StatusBadge>}
+            </div>
+            <h1 className="c-serif mt-3 break-words text-[clamp(2.25rem,5vw,3.75rem)] leading-none text-white">{bot.name}</h1>
+            <p className="c-mono mt-2 truncate text-xs text-[var(--c-faint)]">Workflow {bot.keeperhubWorkflowId ?? "not published yet"}</p>
           </div>
-          <p className="text-xs font-mono text-slate-500">
-            KeeperHub Workflow ID:{" "}
-            <span className="text-slate-800 font-semibold">
-              {bot.keeperhubWorkflowId ?? "—"}
-            </span>
-          </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-start gap-2">
           <ActivationControl
             botId={botId}
             status={bot.status}
             workflowId={bot.keeperhubWorkflowId}
             compact
-            onChanged={(next) => setBot((current) => current ? { ...current, ...next } : current)}
+            onChanged={(next) => {
+              setPatch((current) => ({ ...current, ...next }));
+              void client.invalidateQueries({ queryKey: ["bots"] });
+            }}
           />
-          <Link
-            href={`/bots/${botId}/edit`}
-            className="cosmic-btn-primary inline-flex items-center gap-2 text-xs font-semibold px-4 py-2"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            Edit strategy
+          <Link href={`/bots/${botId}/guided`} className="c-btn-ghost c-btn-sm">
+            <ListChecks className="h-4 w-4" /> Guided setup
           </Link>
-          {editorUrl ? (
-            <a
-              href={editorUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-purple-50 hover:border-purple-300 transition shadow-xs"
-            >
-              <ExternalLink className="h-3.5 w-3.5 text-purple-600" />
-              Open in KH
+          <Link href={`/bots/${botId}/edit`} className="c-btn-ghost c-btn-sm">
+            <SlidersHorizontal className="h-4 w-4" /> Visual editor
+          </Link>
+          {editorUrl && (
+            <a href={editorUrl} target="_blank" rel="noreferrer" className="c-btn-ghost c-btn-sm">
+              <ExternalLink className="h-4 w-4" /> KeeperHub
             </a>
-          ) : null}
-          <button
-            type="button"
-            onClick={deleteBot}
-            className="p-2 rounded-xl border border-rose-200 bg-white text-rose-500 hover:bg-rose-50 hover:border-rose-300 transition shadow-xs cursor-pointer"
-            title="Delete Bot"
-          >
+          )}
+          <button type="button" onClick={deleteBot} aria-label="Delete bot" title="Delete bot" className="c-btn-danger c-btn-sm !px-2.5">
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      {/* Alert URL — only meaningful for a bot whose trigger IS a webhook */}
       {isWebhookSourced && (
-        <div className="rounded-2xl border border-purple-100 bg-white p-5 shadow-xs">
-          <div className="flex items-center gap-2 mb-2">
-            <Webhook className="h-4 w-4 text-purple-600" />
-            <h3 className="text-sm font-semibold text-slate-900">Your TradingView alert URL</h3>
+        <section className="c-panel mb-6 p-6">
+          <div className="flex items-center gap-2">
+            <Webhook className="h-4 w-4 text-[var(--c-pink)]" />
+            <h2 className="font-semibold">Your TradingView alert URL</h2>
           </div>
-          <p className="text-xs text-slate-500 mb-3">
-            Paste this into your TradingView alert&rsquo;s webhook field, with message body <code className="rounded bg-slate-100 px-1 py-0.5">{"{\"action\": \"{{strategy.order.action}}\"}"}</code>.
+          <p className="mt-2 text-sm text-[var(--c-dim)]">
+            Paste this into your TradingView alert&rsquo;s webhook field, with the message body{" "}
+            <code className="c-mono rounded-md bg-white/10 px-1.5 py-0.5 text-xs">{'{"action": "{{strategy.order.action}}"}'}</code>.
             {!bot.keeperhubWorkflowId && " It only exists once this bot is published — turn it on to generate it."}
           </p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 rounded-xl border border-purple-100 bg-purple-50/50 p-2.5 text-xs font-mono text-purple-700 truncate select-all">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <code className="c-mono min-w-0 flex-1 select-all truncate rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-[var(--c-pink)]">
               {webhookUrl || "Not published yet"}
             </code>
             {webhookUrl && (
-              <button
-                type="button"
-                onClick={() => copy(webhookUrl)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-700 hover:bg-purple-50 hover:border-purple-300 transition shadow-xs cursor-pointer"
-              >
-                {copied ? (
-                  <>
-                    <Check className="h-3.5 w-3.5 text-emerald-600" />
-                    <span className="text-emerald-700">Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5 text-purple-600" />
-                    Copy
-                  </>
-                )}
+              <button type="button" onClick={() => copy(webhookUrl)} className="c-btn-ghost">
+                {copied ? <Check className="h-4 w-4 text-[var(--c-up)]" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Copied" : "Copy"}
               </button>
             )}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Trades, stats, and every run — including sat-outs and failures */}
       <ExecutionAuditTrail botId={botId} />
-    </div>
+    </PageShell>
   );
 }
