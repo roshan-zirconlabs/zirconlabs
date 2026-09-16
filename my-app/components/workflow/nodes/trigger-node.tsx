@@ -26,7 +26,7 @@ export const TriggerNode = memo(function TriggerNode({
           : "border-purple-200/90 hover:border-purple-400 hover:shadow-md",
       )}
     >
-      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-violet-600 to-pink-500 text-white shadow-xs">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-600 text-white shadow-xs">
         <Icon className="h-5 w-5" strokeWidth={1.75} />
       </div>
       <div className="min-w-0 flex-1">

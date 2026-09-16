@@ -7,7 +7,7 @@ export default function Footer() {
     <footer className="border-t border-purple-100 bg-white/70 backdrop-blur-md py-6">
       <div className="mx-auto flex max-w-7xl flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-gradient-to-br from-violet-600 to-pink-500 text-white font-bold font-mono text-[10px] shadow-xs">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-white font-bold font-mono text-[10px] shadow-xs">
             ZL
           </div>
           <span className="font-bold tracking-tight text-slate-800 text-xs font-mono">

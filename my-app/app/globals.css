@@ -1,26 +1,39 @@
 @import "tailwindcss";
 
 :root {
-  /* Preserve the violet identity; keep working surfaces quiet. */
-  --bg-app: #fbfaff;
+  /* ── Galaxy identity ──────────────────────────────────────────────
+   * One accent hue (indigo-periwinkle), used consistently everywhere —
+   * including through Tailwind's own purple/violet utility scales below,
+   * so the hundreds of existing purple- and violet- classes across the app
+   * repaint in this palette without being touched file by file. */
+  --bg-app: #f7f6fc;
+  --bg-app-deep: #f0eefa;
   --bg-card: #ffffff;
-  --bg-card-hover: #faf8ff;
+  --bg-card-hover: #faf9fe;
   --bg-elevated: #ffffff;
-  --line: #ede9fe;
-  --line-light: #f5f3ff;
-  --line-accent: #ddd6fe;
+  --line: #e4e2ef;
+  --line-light: #edebf5;
+  --line-accent: #d8d5ea;
   --white: #ffffff;
-  --line2: #f5f3ff;
-  --ink: #0f172a;
-  --ink-secondary: #334155;
-  --muted: #64748b;
-  --muted2: #94a3b8;
-  /* Nebula Accents */
-  --primary: #7c3aed;
-  --primary-hover: #6d28d9;
-  --nebula-fuchsia: #d946ef;
-  --nebula-pink: #ec4899;
-  --nebula-indigo: #4f46e5;
+  --line2: #edebf5;
+  --ink: #171528;
+  --ink-secondary: #2f2c47;
+  --muted: #6d6a82;
+  --muted2: #928fa3;
+
+  --primary: #6f6fd9;
+  --primary-hover: #5a58c9;
+  --accent-soft: #e6e5fb;
+  --accent-glow: rgba(111, 111, 217, 0.16);
+
+  /* Planet-material hues, shared with the homepage journey and reusable
+   * anywhere a small set of distinguishable accent colors is needed. */
+  --planet-rocky: #e8785a;
+  --planet-banded: #e3a93e;
+  --planet-ringed: #6f6fd9;
+  --planet-swirl: #2fa88f;
+  --planet-ember: #d9628f;
+
   --emerald: #059669;
   --emerald-dim: rgba(16, 185, 129, 0.1);
   --rose: #e11d48;
@@ -29,12 +42,12 @@
   --cyan-dim: rgba(2, 132, 199, 0.08);
   --amber: #d97706;
   --amber-dim: rgba(217, 119, 6, 0.08);
-  --r: 8px;
-  --r-lg: 12px;
-  --r-xl: 16px;
-  
-  --shadow-cosmic: 0 4px 20px -2px rgba(124, 58, 237, 0.08), 0 1px 3px 0 rgba(0, 0, 0, 0.04);
-  --shadow-elevated: 0 10px 30px -4px rgba(124, 58, 237, 0.12), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+  --r: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  --shadow-cosmic: 0 4px 20px -2px rgba(111, 111, 217, 0.1), 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 10px 30px -4px rgba(111, 111, 217, 0.14), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
 }
 
 @theme inline {
@@ -43,21 +56,50 @@
   --color-muted: var(--muted);
   --color-card: var(--bg-card);
   --color-border: var(--line);
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-work-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
   --font-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Repaint Tailwind's built-in purple AND violet scales onto the galaxy
+   * indigo hue. Both families are used across existing components — this
+   * is what makes every page share one identity without per-file edits. */
+  --color-purple-50: #f5f5fd;
+  --color-purple-100: #ecebfb;
+  --color-purple-200: #dad8f7;
+  --color-purple-300: #bfbdf0;
+  --color-purple-400: #9d9ae6;
+  --color-purple-500: #6f6fd9;
+  --color-purple-600: #5a58c9;
+  --color-purple-700: #4a47ab;
+  --color-purple-800: #3d3b8a;
+  --color-purple-900: #302f6e;
+  --color-purple-950: #1e1d47;
+
+  --color-violet-50: #f5f5fd;
+  --color-violet-100: #ecebfb;
+  --color-violet-200: #dad8f7;
+  --color-violet-300: #bfbdf0;
+  --color-violet-400: #9d9ae6;
+  --color-violet-500: #6f6fd9;
+  --color-violet-600: #5a58c9;
+  --color-violet-700: #4a47ab;
+  --color-violet-800: #3d3b8a;
+  --color-violet-900: #302f6e;
+  --color-violet-950: #1e1d47;
 }
 
 body {
   background-color: var(--bg-app);
   color: var(--ink);
-  font-family:
-    "DM Sans", system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display);
 }
 
 /* Glassmorphism utilities */
@@ -65,27 +107,42 @@ body {
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(237, 233, 254, 0.9);
+  border: 1px solid rgba(228, 226, 239, 0.9);
 }
 
 .glass-card {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid #ede9fe;
+  border: 1px solid var(--line);
   box-shadow: var(--shadow-cosmic);
 }
 
 .cosmic-btn-primary {
   background: var(--primary);
   color: #ffffff;
-  border-radius: var(--r);
-  transition: background-color 0.15s ease;
+  border-radius: 999px;
+  padding-inline: 1.1em;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  font-family: var(--font-display);
+  font-weight: 700;
 }
 
 .cosmic-btn-primary:hover {
   background: var(--primary-hover);
 }
+
+.cosmic-btn-ghost {
+  background: #ffffff;
+  color: var(--ink);
+  border: 1.5px solid var(--line-accent);
+  border-radius: 999px;
+  padding-inline: 1.1em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  transition: border-color 0.15s ease;
+}
+.cosmic-btn-ghost:hover { border-color: var(--primary); }
 
 :where(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 button:not(:disabled), select:not(:disabled) { cursor: pointer; }
@@ -106,14 +163,14 @@ button:disabled { cursor: not-allowed; }
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #ddd6fe;
+  background: var(--line-accent);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #c4b5fd;
+  background: var(--primary);
 }
 
 ::selection {
-  background: #ede9fe;
-  color: #6d28d9;
+  background: var(--accent-soft);
+  color: var(--primary-hover);
 }

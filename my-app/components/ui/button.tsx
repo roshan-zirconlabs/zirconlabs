@@ -15,7 +15,7 @@ const base =
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 text-white font-semibold hover:opacity-95 shadow-md shadow-purple-500/25 active:scale-[0.98]",
+    "bg-[var(--primary)] text-white font-semibold hover:bg-[var(--primary-hover)] shadow-md shadow-purple-500/25 active:scale-[0.98]",
   secondary:
     "border border-purple-200 bg-purple-50/70 text-purple-900 hover:bg-purple-100 hover:border-purple-300 font-medium shadow-xs",
   outline:

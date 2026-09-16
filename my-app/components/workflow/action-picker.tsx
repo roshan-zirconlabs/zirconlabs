@@ -67,7 +67,7 @@ export default function ActionPicker({
         className="w-full max-w-md overflow-hidden rounded-2xl border border-purple-100 bg-white shadow-2xl shadow-purple-900/10 flex flex-col max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="shrink-0 border-b border-purple-100 p-4 bg-gradient-to-r from-purple-50/60 via-white to-pink-50/60">
+        <div className="shrink-0 border-b border-purple-100 p-4 bg-purple-50/40">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
