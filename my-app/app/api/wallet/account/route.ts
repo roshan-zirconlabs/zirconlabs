@@ -3,18 +3,22 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ManagedWalletError, liveExecutionConfigured, managedWalletConfigured, provisionManagedWallet } from "@/lib/polymarket/managed-account";
 import { z } from "zod";
+import { tradingDepositWallet } from "@/lib/polymarket/account";
 
 const controls = z.object({ liveEnabled: z.boolean().optional(), dailyLimitUsd: z.coerce.number().finite().min(1).max(10000).optional() });
 
-function view(account: { id: string; walletAddress: string; provider: string; status: string; liveEnabled: boolean; dailyLimitUsd: number; createdAt: Date; lastCheckedAt: Date | null; lastError: string | null } | null) {
+function view(account: { id: string; walletAddress: string; depositWalletAddress: string | null; provider: string; status: string; liveEnabled: boolean; dailyLimitUsd: number; createdAt: Date; lastCheckedAt: Date | null; lastError: string | null } | null) {
   if (!account) return null;
-  return { id: account.id, address: account.walletAddress, provider: account.provider, status: account.status, liveEnabled: account.liveEnabled, dailyLimitUsd: account.dailyLimitUsd, createdAt: account.createdAt.toISOString(), lastCheckedAt: account.lastCheckedAt?.toISOString() ?? null, lastError: account.lastError };
+  return { id: account.id, address: account.walletAddress, depositAddress: account.depositWalletAddress, provider: account.provider, status: account.status, liveEnabled: account.liveEnabled, dailyLimitUsd: account.dailyLimitUsd, createdAt: account.createdAt.toISOString(), lastCheckedAt: account.lastCheckedAt?.toISOString() ?? null, lastError: account.lastError };
 }
 
 export async function GET() {
   const session = await auth();
   if (!session?.user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const account = await prisma.polymarketManagedAccount.findUnique({ where: { userId: session.user.id } });
+  if (account && !account.depositWalletAddress && managedWalletConfigured()) {
+    try { account.depositWalletAddress = await tradingDepositWallet(account); } catch { /* resolved on demand later */ }
+  }
   return NextResponse.json({ account: view(account), configured: managedWalletConfigured() }, { headers: { "Cache-Control": "private, no-store" } });
 }
 

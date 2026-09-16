@@ -1,45 +1,43 @@
-import { createSecureClient, relayerApiKey, type SecureClient } from "@polymarket/client";
+import { createSecureClient, type SecureClient } from "@polymarket/client";
 import { signerFrom } from "@polymarket/client/privy";
 import { PrivyClient } from "@privy-io/node";
 import { ManagedWalletError } from "@/lib/polymarket/managed-account";
+import { builderAuthorization, builderKeyConfigured } from "@/lib/polymarket/builder-auth";
 
 /**
- * Builds a Polymarket CLOB client whose signing key is held by the wallet
- * provider.
+ * Builds a Polymarket CLOB client for a user's provider-held wallet.
  *
- * Polymarket refuses orders whose maker is a bare EOA ("maker address not
- * allowed, please use the deposit wallet flow"), so the account wallet must be
- * the signer's deterministic Deposit Wallet. The SDK derives that wallet when
- * `wallet` is omitted — passing the signer's own address would opt back into
- * the rejected EOA mode.
+ * Two things make this work on the current CLOB:
+ *  - `wallet` is omitted, so the SDK uses the signer's deterministic Deposit
+ *    Wallet as the account. Polymarket rejects a bare EOA maker; the Deposit
+ *    Wallet is the account type it accepts.
+ *  - an app builder key authorizes the request, which both lets the SDK deploy
+ *    the Deposit Wallet gaslessly through Polymarket's relayer and passes the
+ *    CLOB's builder check on order posting.
  *
- * Deploying a Deposit Wallet goes through Polymarket's relayer, which needs a
- * Relayer or Builder API key issued by Polymarket. Without one the SDK cannot
- * complete the flow, so live trading stays unavailable rather than failing at
- * order time.
+ * The returned client's `account.wallet` is the user's Deposit Wallet address —
+ * the address that holds funds and appears as the order maker.
  */
-export function relayerConfigured(): boolean {
-  return Boolean(process.env.POLYMARKET_RELAYER_API_KEY?.trim() && process.env.POLYMARKET_RELAYER_ADDRESS?.trim());
-}
-
-export async function createManagedPolymarketClient(walletId: string, _walletAddress: string): Promise<SecureClient> {
+export async function createManagedPolymarketClient(walletId: string, _walletAddress?: string): Promise<SecureClient> {
   const appId = process.env.PRIVY_APP_ID?.trim();
   const appSecret = process.env.PRIVY_APP_SECRET?.trim();
   if (!appId || !appSecret) throw new ManagedWalletError("PROVIDER_NOT_CONFIGURED", "Managed wallet credentials are not configured.");
-
-  const key = process.env.POLYMARKET_RELAYER_API_KEY?.trim();
-  const address = process.env.POLYMARKET_RELAYER_ADDRESS?.trim();
-  if (!key || !address) {
+  if (!builderKeyConfigured()) {
     throw new ManagedWalletError(
-      "RELAYER_NOT_CONFIGURED",
-      "Live Polymarket trading needs a Polymarket Relayer or Builder API key. Polymarket rejects orders from a plain wallet, and the Deposit Wallet it requires can only be created through their relayer.",
+      "BUILDER_KEY_NOT_CONFIGURED",
+      "Live Polymarket trading needs an app builder key (POLYMARKET_BUILDER_KEY/SECRET/PASSPHRASE). Mint one with scripts/mint-builder-key.ts.",
       503,
     );
   }
-
   const privy = new PrivyClient({ appId, appSecret });
   const signer = signerFrom({ privy, walletId });
-  // `wallet` is deliberately omitted: the SDK then uses the signer's
-  // deterministic Deposit Wallet, which is the account type Polymarket accepts.
-  return createSecureClient({ signer, apiKey: relayerApiKey({ key, address }) });
+  return createSecureClient({ signer, apiKey: builderAuthorization() as never });
+}
+
+/** The Deposit Wallet address for a provider wallet — where funds must live. */
+export async function resolveDepositWalletAddress(walletId: string): Promise<string> {
+  const client = await createManagedPolymarketClient(walletId);
+  const wallet = (client as unknown as { account?: { wallet?: string } }).account?.wallet;
+  if (!wallet) throw new ManagedWalletError("DEPOSIT_WALLET_UNRESOLVED", "Could not resolve the trading deposit wallet.", 502);
+  return wallet;
 }

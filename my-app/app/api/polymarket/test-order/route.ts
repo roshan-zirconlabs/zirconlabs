@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { createManagedPolymarketClient } from "@/lib/polymarket/live-client";
 import { liveExecutionConfigured } from "@/lib/polymarket/managed-account";
 import { readAccountReadiness } from "@/lib/polymarket/account-readiness";
+import { tradingDepositWallet } from "@/lib/polymarket/account";
 import { reserveOrder } from "@/lib/polymarket/reserve-order";
 import { MarketError, previewBuy } from "@/lib/polymarket-markets";
 import { assertSameRequest, orderInput } from "@/lib/polymarket-orders";
@@ -30,7 +31,8 @@ export async function POST(req: NextRequest) {
     if (!liveExecutionConfigured()) return NextResponse.json({ error: "Live trading is not enabled on this deployment." }, { status: 503 });
     const account = await prisma.polymarketManagedAccount.findUnique({ where: { userId: session.user.id } });
     if (!account || account.status !== "ACTIVE" || !account.liveEnabled) return NextResponse.json({ error: "Create, fund and enable your trading account first." }, { status: 409 });
-    const [quote, readiness] = await Promise.all([previewBuy(input), readAccountReadiness(account.walletAddress)]);
+    const depositWallet = await tradingDepositWallet(account);
+    const [quote, readiness] = await Promise.all([previewBuy(input), readAccountReadiness(depositWallet)]);
     if (!readiness.approvals.isFullyApproved) return NextResponse.json({ error: "Your account still needs trading approvals." }, { status: 409 });
     if (Number(readiness.balance) < input.amountUsd) return NextResponse.json({ error: "Your trading balance is below the order amount. Add funds and allow for trading fees." }, { status: 409 });
     const client = await createManagedPolymarketClient(account.providerWalletId, account.walletAddress);

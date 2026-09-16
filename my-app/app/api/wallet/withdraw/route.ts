@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { createManagedPolymarketClient } from "@/lib/polymarket/live-client";
 import { managedWalletConfigured } from "@/lib/polymarket/managed-account";
 import { readAccountReadiness } from "@/lib/polymarket/account-readiness";
+import { tradingDepositWallet } from "@/lib/polymarket/account";
 import { assertDestination, assertSameWithdrawal, resolveAmount, withdrawInput, WithdrawError, COLLATERAL_DECIMALS } from "@/lib/polymarket/withdraw";
 import { formatUnits } from "viem";
 
@@ -56,8 +57,9 @@ export async function POST(req: NextRequest) {
 
   let recordId: string | null = null;
   try {
-    const destination = assertDestination(input.destination, account.walletAddress);
-    const readiness = await readAccountReadiness(account.walletAddress);
+    const depositWallet = await tradingDepositWallet(account);
+    const destination = assertDestination(input.destination, depositWallet);
+    const readiness = await readAccountReadiness(depositWallet);
     const amount = resolveAmount(input.amount, readiness.balance);
     const amountUsd = formatUnits(amount, COLLATERAL_DECIMALS);
 
@@ -79,11 +81,6 @@ export async function POST(req: NextRequest) {
       data: { userId: session.user.id, requestId: input.requestId, destination, amountUsd },
     });
     recordId = record.id;
-
-    if (Number(readiness.nativeBalance) <= 0) {
-      await prisma.walletWithdrawal.update({ where: { id: record.id }, data: { status: "FAILED", error: "No POL for gas." } });
-      return NextResponse.json({ error: "This wallet has no POL for the network fee. Send a small amount of POL on Polygon and retry." }, { status: 409, headers });
-    }
 
     const client = await createManagedPolymarketClient(account.providerWalletId, account.walletAddress);
     const handle = await transferErc20(client, { amount, recipientAddress: destination, tokenAddress: COLLATERAL_TOKEN });

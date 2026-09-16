@@ -79,6 +79,9 @@ model PolymarketManagedAccount {
   provider          String   @default("privy")
   providerWalletId  String   @unique
   walletAddress     String   @unique
+  /// Polymarket Deposit Wallet derived from walletAddress (the signer). Funds
+  /// live here and it is the order maker; resolved lazily and cached.
+  depositWalletAddress String? @unique
   status            String   @default("ACTIVE")
   liveEnabled       Boolean  @default(false)
   dailyLimitUsd     Float    @default(100)

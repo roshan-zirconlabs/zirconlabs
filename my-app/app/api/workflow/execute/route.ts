@@ -13,6 +13,7 @@ import { simulateBuy } from "@/lib/paper-fill";
 import { liveExecutionConfigured } from "@/lib/polymarket/managed-account";
 import { createManagedPolymarketClient } from "@/lib/polymarket/live-client";
 import { readAccountReadiness } from "@/lib/polymarket/account-readiness";
+import { tradingDepositWallet } from "@/lib/polymarket/account";
 import { reserveOrder } from "@/lib/polymarket/reserve-order";
 
 export const runtime = "nodejs";
@@ -169,7 +170,8 @@ export async function POST(req: NextRequest) {
     if (!account || account.status !== "ACTIVE" || !account.liveEnabled) {
       return NextResponse.json({ error: "The bot owner's trading account is not funded and enabled for live trading." }, { status: 409, headers });
     }
-    const readiness = await readAccountReadiness(account.walletAddress);
+    const depositWallet = await tradingDepositWallet(account);
+    const readiness = await readAccountReadiness(depositWallet);
     if (!readiness.approvals.isFullyApproved) {
       return NextResponse.json({ error: "The trading account still needs Polymarket approvals." }, { status: 409, headers });
     }

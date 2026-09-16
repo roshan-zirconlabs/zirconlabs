@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { createManagedPolymarketClient } from "@/lib/polymarket/live-client";
 import { liveExecutionConfigured } from "@/lib/polymarket/managed-account";
 import { getCurrentPositions } from "@/lib/trading/polymarket-utils";
+import { tradingDepositWallet } from "@/lib/polymarket/account";
 import { resolveShares, sellInput, simulateSell, SellError } from "@/lib/polymarket/sell";
 import { MarketError } from "@/lib/polymarket-markets";
 
@@ -63,7 +64,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const positions = await getCurrentPositions(account.walletAddress);
+    const depositWallet = await tradingDepositWallet(account);
+    const positions = await getCurrentPositions(depositWallet);
     if (positions === null) return NextResponse.json({ error: "Polymarket positions are temporarily unavailable. Retry shortly." }, { status: 502, headers });
     const holding = positions.find(p => p.asset === input.assetId);
     if (!holding) return NextResponse.json({ error: "This wallet does not hold that position." }, { status: 409, headers });

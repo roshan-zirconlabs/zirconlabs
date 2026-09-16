@@ -7,6 +7,7 @@ import { createManagedPolymarketClient } from "@/lib/polymarket/live-client";
 import { managedWalletConfigured } from "@/lib/polymarket/managed-account";
 import { getCurrentPositions } from "@/lib/trading/polymarket-utils";
 import { readAccountReadiness } from "@/lib/polymarket/account-readiness";
+import { tradingDepositWallet } from "@/lib/polymarket/account";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -75,17 +76,13 @@ export async function POST(req: NextRequest) {
 
   try {
     // Only redeem a market this wallet actually holds and that has settled.
-    const positions = await getCurrentPositions(account.walletAddress);
+    const depositWallet = await tradingDepositWallet(account);
+    const positions = await getCurrentPositions(depositWallet);
     if (positions === null) return NextResponse.json({ error: "Polymarket positions are temporarily unavailable. Retry shortly." }, { status: 502, headers });
     const holding = positions.find(p => p.conditionId?.toLowerCase() === parsed.data.conditionId.toLowerCase() && p.size > 0);
     if (!holding) return NextResponse.json({ error: "This wallet does not hold a position in that market." }, { status: 409, headers });
     if (!(await resolvedConditionIds([parsed.data.conditionId])).size) {
       return NextResponse.json({ error: "That market has not resolved yet. Winnings can only be claimed after it settles." }, { status: 409, headers });
-    }
-
-    const readiness = await readAccountReadiness(account.walletAddress);
-    if (Number(readiness.nativeBalance) <= 0) {
-      return NextResponse.json({ error: "This wallet has no POL for the network fee. Send a small amount of POL on Polygon and retry." }, { status: 409, headers });
     }
 
     const client = await createManagedPolymarketClient(account.providerWalletId, account.walletAddress);

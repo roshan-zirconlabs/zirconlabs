@@ -66,8 +66,12 @@ export function managedWalletConfigured() { return Boolean(process.env.PRIVY_APP
  * live order fails at submission, after a budget reservation has been taken.
  */
 export function liveExecutionConfigured() {
-  const relayer = Boolean(process.env.POLYMARKET_RELAYER_API_KEY?.trim() && process.env.POLYMARKET_RELAYER_ADDRESS?.trim());
-  return managedWalletConfigured() && relayer
+  const builder = Boolean(
+    process.env.POLYMARKET_BUILDER_KEY?.trim() &&
+    process.env.POLYMARKET_BUILDER_SECRET?.trim() &&
+    process.env.POLYMARKET_BUILDER_PASSPHRASE?.trim(),
+  );
+  return managedWalletConfigured() && builder
     && process.env.POLYMARKET_CLOB_V2_ADAPTER_READY === "true"
     && process.env.POLYMARKET_LIVE_ENABLED === "true";
 }

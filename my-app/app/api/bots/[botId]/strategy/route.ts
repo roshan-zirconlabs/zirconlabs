@@ -5,6 +5,7 @@ import { strategySpec, describeStrategy } from "@/lib/workflow/strategy";
 import { keeperhub } from "@/lib/keeperhub";
 import { compileStrategyWorkflow } from "@/lib/workflow/compile";
 import { getHostedSchemas, validateHostedGraph, KeeperhubCatalogError } from "@/lib/workflow-validation";
+import { tradingDepositWallet } from "@/lib/polymarket/account";
 
 type RouteParams = { params: Promise<{ botId: string }> };
 const headers = { "Cache-Control": "private, no-store" };
@@ -47,9 +48,11 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   let tradingWalletAddress: string | null = null;
   if (spec.mode === "live") {
     const account = await prisma.polymarketManagedAccount.findUnique({
-      where: { userId: session.user.id }, select: { status: true, liveEnabled: true, walletAddress: true },
+      where: { userId: session.user.id },
     });
-    tradingWalletAddress = account?.walletAddress ?? null;
+    if (account && account.status === "ACTIVE" && account.liveEnabled) {
+      try { tradingWalletAddress = await tradingDepositWallet(account); } catch { /* balance node is best-effort */ }
+    }
     if (!account || account.status !== "ACTIVE" || !account.liveEnabled) {
       return NextResponse.json({
         error: "Fund your trading account and turn on live trading before saving a live strategy.",
