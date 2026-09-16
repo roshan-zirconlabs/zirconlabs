@@ -1,54 +1,196 @@
 "use client";
+
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Copy, Pause, ShieldCheck, Wallet } from "lucide-react";
-import type { BridgeAsset } from "@/lib/polymarket-bridge";
-import AccountReadiness from "@/components/wallet/account-readiness";
+import { Check, Copy, Loader2, PauseCircle, ShieldCheck, Wallet } from "lucide-react";
 import CashOut from "@/components/wallet/cash-out";
 
-type Account = { id: string; address: string; provider: string; status: string; liveEnabled: boolean; dailyLimitUsd: number; lastError: string | null };
-type Instructions = { destination: string; depositAddress: string; asset: BridgeAsset };
-async function request<T>(url: string, init?: RequestInit): Promise<T> { const response = await fetch(url, init); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Request failed. Try again."); return data; }
+type Account = { id: string; provider: string; status: string; liveEnabled: boolean; dailyLimitUsd: number; lastError: string | null };
+type Deposit = { depositAddress: string; networks: { chainId: string; chainName: string; minUsd: number }[]; transfers: { status: string; amountUsd: number | null; explorerUrl: string | null }[] };
+type Readiness = { balance: string; readiness: string };
+
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Request failed. Try again.");
+  return data as T;
+}
 
 export default function WalletPage() {
   const { status } = useSession();
   const [account, setAccount] = useState<Account | null>(null);
   const [configured, setConfigured] = useState(true);
-  const [assets, setAssets] = useState<BridgeAsset[]>([]);
-  const [assetIndex, setAssetIndex] = useState("");
-  const [instructions, setInstructions] = useState<Instructions | null>(null);
+  const [deposit, setDeposit] = useState<Deposit | null>(null);
+  const [balance, setBalance] = useState(0);
   const [limit, setLimit] = useState("100");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  async function load() {
+  const load = useCallback(async () => {
     if (status !== "authenticated") return;
-    try { const data = await request<{ account: Account | null; configured: boolean }>("/api/wallet/account"); setAccount(data.account); setConfigured(data.configured); if (data.account) setLimit(String(data.account.dailyLimitUsd)); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load your account."); }
-  }
-  useEffect(() => { void load(); }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { void request<{ assets: BridgeAsset[] }>("/api/wallet/deposit").then(data => setAssets(data.assets)).catch(() => setError("Funding options are temporarily unavailable.")); }, []);
-  async function createAccount() { setBusy(true); setError(""); try { const data = await request<{ account: Account }>("/api/wallet/account", { method: "POST" }); setAccount(data.account); setNotice("Your private trading account is ready. Add funds to begin."); } catch (e) { setError(e instanceof Error ? e.message : "Account creation failed."); } finally { setBusy(false); } }
-  async function saveControls() { if (!account) return; setBusy(true); setError(""); try { const data = await request<{ account: Account }>("/api/wallet/account", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dailyLimitUsd: Number(limit) }) }); setAccount(data.account); setNotice("Safety limit saved."); } catch (e) { setError(e instanceof Error ? e.message : "Could not save your limit."); } finally { setBusy(false); } }
-  async function enableLive() { if (!account) return; setBusy(true); setError(""); try { const data = await request<{ account: Account }>("/api/wallet/account", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ liveEnabled: true }) }); setAccount(data.account); setNotice("Live trading enabled for this account."); } catch (e) { setError(e instanceof Error ? e.message : "Live trading is not available yet."); } finally { setBusy(false); } }
-  async function pause() { setBusy(true); try { await request("/api/wallet/account", { method: "DELETE" }); setAccount(a => a ? { ...a, status: "PAUSED", liveEnabled: false } : a); setNotice("Live trading paused. Paper mode is still available."); } catch (e) { setError(e instanceof Error ? e.message : "Could not pause trading."); } finally { setBusy(false); } }
-  async function createDeposit() { const asset = assets[Number(assetIndex)]; if (!asset || !account) return; setBusy(true); setError(""); try { setInstructions(await request<Instructions>("/api/wallet/deposit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmedAccountWallet: true, chainId: asset.chainId, tokenAddress: asset.token.address }) })); } catch (e) { setError(e instanceof Error ? e.message : "Deposit instructions unavailable."); } finally { setBusy(false); } }
-  async function copy(value: string) { await navigator.clipboard.writeText(value); setNotice("Deposit address copied. Verify the network before sending."); }
+    try {
+      const data = await request<{ account: Account | null; configured: boolean }>("/api/wallet/account");
+      setAccount(data.account);
+      setConfigured(data.configured);
+      if (data.account) {
+        setLimit(String(data.account.dailyLimitUsd));
+        const [d, r] = await Promise.all([
+          request<Deposit>("/api/wallet/deposit").catch(() => null),
+          request<Readiness>("/api/polymarket/readiness").catch(() => null),
+        ]);
+        if (d) setDeposit(d);
+        if (r) setBalance(Number(r.balance));
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load your account.");
+    }
+  }, [status]);
 
-  if (status !== "authenticated") return <main className="mx-auto max-w-3xl px-5 py-16"><h1 className="text-3xl font-semibold tracking-tight">Trading account</h1><p className="mt-3 text-slate-600">Sign in to create your private Polymarket trading account.</p><Link className="mt-6 inline-block underline" href="/auth/sign-in?callbackUrl=/wallet">Sign in</Link></main>;
-  return <main className="mx-auto max-w-4xl px-5 py-10 sm:px-8">
-    <header className="border-b border-slate-200 pb-7"><p className="text-sm font-medium text-violet-700">Zircon trading account</p><h1 className="mt-2 flex items-center gap-3 text-3xl font-semibold tracking-tight"><Wallet className="h-7 w-7 text-violet-600" />Your account</h1><p className="mt-3 max-w-2xl text-slate-600">A separate account for your automated Polymarket strategies. Zircon protects the signing key with a managed wallet provider; you never paste a seed phrase or learn wallet jargon.</p></header>
-    <div className="mt-8 space-y-8">
-      {!account ? <section className="rounded-xl border border-violet-200 bg-violet-50/60 p-6"><ShieldCheck className="h-6 w-6 text-violet-700" /><h2 className="mt-3 text-xl font-semibold">Create your trading account</h2><p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">One isolated Polygon wallet is created for you. It is not your KeeperHub organization wallet and it is not shared with anyone else.</p>{!configured && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">The server is missing its managed-wallet credentials. An administrator must add them before accounts can be created.</p>}<button onClick={createAccount} disabled={busy || !configured} className="cosmic-btn-primary mt-5 px-5 py-3 text-sm disabled:opacity-50">{busy ? "Creating…" : "Create account"}</button></section> : <>
-        <section className="grid gap-5 border-b border-slate-200 pb-7 sm:grid-cols-[1fr_auto]"><div><p className="text-sm text-slate-500">Trading address</p><p className="mt-2 break-all font-mono text-sm">{account.address}</p><p className="mt-3 text-sm text-slate-600">Status: <span className="font-medium text-emerald-700">{account.status.toLowerCase()}</span> · Provider-secured</p></div><button onClick={pause} disabled={busy || account.status === "PAUSED"} className="inline-flex h-fit items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm"><Pause className="h-4 w-4" />Pause live trading</button></section>
-        <section className="space-y-4"><h2 className="text-lg font-semibold">Add funds</h2><p className="text-sm leading-6 text-slate-600">Choose where you are sending funds from. The bridge converts the supported asset into Polymarket collateral and routes it to your account automatically.</p><select value={assetIndex} onChange={e => setAssetIndex(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white p-3 text-sm"><option value="">Choose a network and token</option>{assets.map((a, i) => <option key={`${a.chainId}-${a.token.address}`} value={i}>{a.chainName} — {a.token.symbol} · minimum ${a.minCheckoutUsd}</option>)}</select><button onClick={createDeposit} disabled={busy || !assetIndex} className="cosmic-btn-primary px-5 py-3 text-sm disabled:opacity-50">{busy ? "Preparing…" : "Show funding address"}</button>{instructions && <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-5"><p className="font-semibold">Send {instructions.asset.token.symbol} on {instructions.asset.chainName}</p><p className="mt-2 text-sm">Minimum ${instructions.asset.minCheckoutUsd} equivalent. This address is a bridge deposit address, not a different account.</p><code className="mt-4 block break-all rounded bg-white p-3 text-xs">{instructions.depositAddress}</code><button onClick={() => copy(instructions.depositAddress)} className="mt-3 inline-flex items-center gap-2 text-sm text-violet-700"><Copy className="h-4 w-4" />Copy address</button><p className="mt-3 break-all text-xs text-slate-600">Destination account: {instructions.destination}</p></div>}</section>
-        <section className="space-y-4 border-t border-slate-200 pt-7"><h2 className="text-lg font-semibold">Automation safety</h2><p className="text-sm leading-6 text-slate-600">Paper mode is always available. Live bots are off until you explicitly enable them after funding and reviewing a strategy.</p><label className="block text-sm font-medium">Daily spend limit (USD)<input value={limit} onChange={e => setLimit(e.target.value)} type="number" min="1" max="10000" step="1" className="mt-2 block w-48 rounded-lg border border-slate-300 p-3" /></label><div className="flex flex-wrap gap-3"><button onClick={saveControls} disabled={busy} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm disabled:opacity-50">Save limit</button><button onClick={enableLive} disabled={busy || account.liveEnabled || account.status === "PAUSED"} className="cosmic-btn-primary px-4 py-2.5 text-sm disabled:opacity-50">{account.liveEnabled ? "Live trading enabled" : "Enable live trading"}</button></div>{account.lastError && <p role="alert" className="text-sm text-red-700">{account.lastError}</p>}</section>
-      </>}
-      {account && <AccountReadiness />}
-      {account && <CashOut onChanged={() => void load()} />}
-      {error && <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-800">{error}</p>}{notice && <p role="status" className="text-sm text-violet-700">{notice}</p>}
-      <p className="border-t border-slate-200 pt-6 text-xs leading-5 text-slate-500">KeeperHub remains a separate workflow execution connection for its supported plugins. Polymarket accounts are subject to regional eligibility, market rules and the provider’s security policies.</p>
-    </div>
-  </main>;
+  useEffect(() => { void load(); }, [load]);
+
+  async function createAccount() {
+    setBusy("create"); setError("");
+    try {
+      await request("/api/wallet/account", { method: "POST" });
+      setNotice("Your trading account is ready. Add funds to begin.");
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : "Account creation failed."); }
+    finally { setBusy(null); }
+  }
+
+  async function saveLimit() {
+    setBusy("limit"); setError("");
+    try {
+      await request("/api/wallet/account", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dailyLimitUsd: Number(limit) }) });
+      setNotice("Daily limit saved.");
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save your limit."); }
+    finally { setBusy(null); }
+  }
+
+  async function toggleLive() {
+    setBusy("live"); setError("");
+    try {
+      if (account?.liveEnabled) {
+        await request("/api/wallet/account", { method: "DELETE" });
+        setNotice("Live trading paused. Practice mode is still available.");
+      } else {
+        await request("/api/wallet/account", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ liveEnabled: true }) });
+        setNotice("Live trading is on.");
+      }
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not update live trading."); }
+    finally { setBusy(null); }
+  }
+
+  async function copyAddress() {
+    if (!deposit) return;
+    await navigator.clipboard.writeText(deposit.depositAddress);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
+
+  if (status !== "authenticated") {
+    return (
+      <main className="mx-auto max-w-md px-5 py-20 text-center">
+        <Wallet className="mx-auto h-8 w-8 text-violet-600" />
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Wallet</h1>
+        <p className="mt-2 text-sm text-slate-600">Sign in to create your Polymarket trading account.</p>
+        <Link href="/auth/sign-in?callbackUrl=/wallet" className="mt-5 inline-block cosmic-btn-primary px-5 py-2.5 text-sm">Sign in</Link>
+      </main>
+    );
+  }
+
+  return (
+    <main className="mx-auto max-w-2xl px-5 py-10 sm:px-6">
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Wallet</h1>
+      <p className="mt-1 text-sm text-slate-500">A private trading account for your bots. No seed phrase, ever.</p>
+
+      <div className="mt-7 space-y-4">
+        {!account ? (
+          <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-7 text-center">
+            <ShieldCheck className="mx-auto h-7 w-7 text-violet-600" />
+            <h2 className="mt-3 text-lg font-semibold text-slate-900">Create your trading account</h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-600">One private wallet, created just for you. You never see or handle a private key.</p>
+            {!configured && <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">Not available on this deployment yet.</p>}
+            <button onClick={createAccount} disabled={busy !== null || !configured} className="mt-5 cosmic-btn-primary px-5 py-2.5 text-sm disabled:opacity-50">
+              {busy === "create" ? "Creating…" : "Create account"}
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Balance + fund, unified */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-7">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Balance</div>
+                  <div className="mt-1 text-3xl font-semibold tabular-nums text-slate-900">${balance.toFixed(2)}</div>
+                </div>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${balance > 0 ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${balance > 0 ? "bg-emerald-500" : "bg-slate-400"}`} />
+                  {balance > 0 ? "Funded" : "Needs funds"}
+                </span>
+              </div>
+
+              <div className="mt-5 border-t border-slate-100 pt-5">
+                <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Deposit address</div>
+                {deposit ? (
+                  <>
+                    <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+                      <code className="min-w-0 flex-1 truncate font-mono text-sm text-slate-800">{deposit.depositAddress}</code>
+                      <button onClick={copyAddress} className="flex shrink-0 items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 shadow-xs ring-1 ring-slate-200 hover:text-slate-900">
+                        {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copied ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                    <p className="mt-2.5 text-xs leading-5 text-slate-500">
+                      Send USDC, ETH or most common tokens from {deposit.networks.map(n => n.chainName).join(", ")}.
+                      It converts automatically — same address either way. Minimum around ${Math.min(...deposit.networks.map(n => n.minUsd), 3)}.
+                    </p>
+                    {deposit.transfers.length > 0 && (
+                      <ul className="mt-3 space-y-1">
+                        {deposit.transfers.map((t, i) => (
+                          <li key={i} className="flex items-center justify-between text-xs text-slate-500">
+                            <span className="capitalize">{t.status.toLowerCase()}{t.amountUsd != null ? ` · $${t.amountUsd.toFixed(2)}` : ""}</span>
+                            {t.explorerUrl && <a href={t.explorerUrl} target="_blank" rel="noopener noreferrer" className="underline">view</a>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                ) : (
+                  <div className="mt-2 h-10 animate-pulse rounded-lg bg-slate-100" />
+                )}
+              </div>
+            </div>
+
+            {/* Safety controls, one compact row */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 sm:px-7">
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                Daily limit
+                <input value={limit} onChange={e => setLimit(e.target.value)} onBlur={saveLimit} type="number" min="1" max="10000" step="1"
+                  className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm tabular-nums focus:border-violet-400 focus:outline-none" />
+              </label>
+              <span className="h-4 w-px bg-slate-200" />
+              <button onClick={toggleLive} disabled={busy !== null} className="flex items-center gap-1.5 text-sm font-medium disabled:opacity-50">
+                {busy === "live" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : account.liveEnabled ? <PauseCircle className="h-3.5 w-3.5 text-slate-500" /> : <ShieldCheck className="h-3.5 w-3.5 text-violet-600" />}
+                <span className={account.liveEnabled ? "text-slate-700" : "text-violet-700"}>{account.liveEnabled ? "Live trading on — pause" : "Turn on live trading"}</span>
+              </button>
+              {account.lastError && <span className="text-xs text-red-700">{account.lastError}</span>}
+            </div>
+
+            <CashOut balance={balance} onChanged={() => void load()} />
+          </>
+        )}
+
+        {error && <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>}
+        {notice && <p role="status" className="text-sm text-violet-700">{notice}</p>}
+      </div>
+
+      <p className="mt-8 text-xs leading-5 text-slate-400">Practice mode is always free. Live trades use this balance and can lose money. Subject to Polymarket&rsquo;s regional eligibility and market rules.</p>
+    </main>
+  );
 }

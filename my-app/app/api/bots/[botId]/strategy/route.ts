@@ -6,6 +6,7 @@ import { keeperhub } from "@/lib/keeperhub";
 import { compileStrategyWorkflow } from "@/lib/workflow/compile";
 import { getHostedSchemas, validateHostedGraph, KeeperhubCatalogError } from "@/lib/workflow-validation";
 import { tradingDepositWallet } from "@/lib/polymarket/account";
+import { keeperhubForUser, platformWorkflowName } from "@/lib/keeperhub-connection";
 
 type RouteParams = { params: Promise<{ botId: string }> };
 const headers = { "Cache-Control": "private, no-store" };
@@ -82,5 +83,33 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     data: { strategy: spec, workflow: JSON.parse(JSON.stringify(graph)) },
   });
 
-  return NextResponse.json({ ok: true, strategy: spec, summary: describeStrategy(spec), nodes: graph.nodes.length }, { headers });
+  // A change to an already-published bot must take effect immediately, not
+  // only on the next manual "Publish & activate" click — otherwise KeeperHub
+  // keeps running the previous graph (e.g. still in the previous paper/live
+  // mode) with no visible sign that the save did nothing.
+  let republished = false;
+  const workflowId = bot.keeperhubWorkflowId?.startsWith("local_") ? null : bot.keeperhubWorkflowId;
+  if (bot.status === "ACTIVE" && workflowId) {
+    try {
+      const { client: kh } = await keeperhubForUser(session.user.id);
+      await kh.updateWorkflow(workflowId, graph);
+      republished = true;
+    } catch (error) {
+      return NextResponse.json({
+        ok: true, strategy: spec, summary: describeStrategy(spec), nodes: graph.nodes.length, republished: false,
+        error: `Saved, but the live workflow on KeeperHub was not updated: ${error instanceof Error ? error.message : "unknown error"}. It is still running the previous version — try saving again.`,
+      }, { status: 200, headers });
+    }
+  } else if (bot.status === "ACTIVE" && !workflowId) {
+    // Save it as a platform-hosted workflow instead of publishing blind
+    try {
+      const { client: kh, source } = await keeperhubForUser(session.user.id);
+      const wf = await kh.createWorkflow({ name: source === "platform" ? platformWorkflowName(bot.name, bot.id) : bot.name, ...graph });
+      await kh.updateWorkflow(wf.id, { enabled: true });
+      await prisma.bot.update({ where: { id: bot.id }, data: { keeperhubWorkflowId: wf.id } });
+      republished = true;
+    } catch { /* Bot stays ACTIVE locally with no workflow; the bot detail page surfaces this. */ }
+  }
+
+  return NextResponse.json({ ok: true, strategy: spec, summary: describeStrategy(spec), nodes: graph.nodes.length, republished }, { headers });
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, Loader2, Play, Save, Wallet } from "lucide-react";
+import { AlertTriangle, Check, Loader2, Play, Save, ShieldCheck, Wallet } from "lucide-react";
 import Link from "next/link";
 import Button from "@/components/ui/button";
 import { ASSETS, RULES, TIMEFRAMES } from "@/lib/workflow/strategy";
+import PipelinePreview from "@/components/workflow/pipeline-preview";
 
 type Spec = {
   version: 1;
@@ -43,7 +44,7 @@ const CADENCE: Record<Spec["timeframe"], string> = {
 
 const fieldClass = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-purple-400";
 
-export default function StrategyBuilder({ botId, onSaved }: { botId: string; onSaved?: () => void }) {
+export default function StrategyBuilder({ botId, onSaved }: { botId: string; onSaved?: (wasActive: boolean) => void }) {
   const [spec, setSpec] = useState<Spec>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -53,6 +54,8 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [alertUrl, setAlertUrl] = useState<string | null>(null);
+  const [botStatus, setBotStatus] = useState<string>("INACTIVE");
+  const [readiness, setReadiness] = useState<{ funded: boolean; balance: number; hasAccount: boolean; liveEnabled: boolean } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -63,11 +66,35 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
         if (!alive) return;
         if (json.strategy) setSpec({ ...DEFAULTS, ...json.strategy });
         setAlertUrl(json.alertUrl ?? null);
+        setBotStatus(json.bot?.status ?? "INACTIVE");
       } catch { /* A new bot simply starts from the defaults. */ }
       finally { if (alive) setLoading(false); }
     })();
     return () => { alive = false; };
   }, [botId]);
+
+  useEffect(() => {
+    if (spec.mode !== "live") { setReadiness(null); return; }
+    let alive = true;
+    (async () => {
+      try {
+        const [acctRes, readyRes] = await Promise.all([
+          fetch("/api/wallet/account"), fetch("/api/polymarket/readiness"),
+        ]);
+        const acct = await acctRes.json().catch(() => ({}));
+        const ready = await readyRes.json().catch(() => ({}));
+        if (!alive) return;
+        const hasAccount = Boolean(acct.account);
+        setReadiness({
+          hasAccount,
+          liveEnabled: Boolean(acct.account?.liveEnabled),
+          balance: Number(ready.balance ?? 0),
+          funded: Number(ready.balance ?? 0) > 0,
+        });
+      } catch { if (alive) setReadiness(null); }
+    })();
+    return () => { alive = false; };
+  }, [spec.mode]);
 
   const set = useCallback(<K extends keyof Spec>(key: K, value: Spec[K]) => {
     setSpec(s => ({ ...s, [key]: value }));
@@ -95,6 +122,7 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
 
   async function save() {
     setSaving(true); setError(null);
+    const wasActive = botStatus === "ACTIVE";
     try {
       const res = await fetch(`/api/bots/${botId}/strategy`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(spec),
@@ -102,7 +130,9 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "The strategy could not be saved.");
       setDirty(false); setSaved(true);
-      onSaved?.();
+      // A 200 with an error means the draft saved but KeeperHub wasn't reached.
+      if (json.error) setError(json.error);
+      onSaved?.(wasActive);
     } catch (e) {
       setError(e instanceof Error ? e.message : "The strategy could not be saved.");
     } finally { setSaving(false); }
@@ -112,6 +142,18 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
 
   return (
     <div className="space-y-6">
+      <section className="rounded-2xl border border-slate-900 bg-slate-900 p-4 shadow-xs">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">What this actually runs</h2>
+          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${spec.mode === "live" ? "bg-amber-400/20 text-amber-300" : "bg-emerald-400/20 text-emerald-300"}`}>
+            {spec.mode === "live" ? "Live · real money" : "Practice · simulated"}
+          </span>
+        </div>
+        <div className="mt-3 rounded-xl bg-slate-800/60 p-2">
+          <PipelinePreview spec={spec} />
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-purple-100 bg-white p-5 shadow-xs">
         <h2 className="text-sm font-semibold text-slate-900">1 · What starts a trade?</h2>
         <div className="mt-4 space-y-2">
@@ -222,14 +264,34 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
             <span>
               <span className="block text-sm font-medium text-slate-900">Real money</span>
               <span className="block text-xs text-slate-500">
-                Buys real shares from your own funded trading wallet. Requires a funded account with trading turned on.
+                Buys real shares from your own funded trading wallet. Checked before every single order — never assumed.
               </span>
-              <Link href="/wallet" className="mt-1 inline-flex items-center gap-1 text-xs text-purple-700 underline">
-                <Wallet className="h-3 w-3" /> Open trading wallet
-              </Link>
             </span>
           </label>
         </div>
+
+        {spec.mode === "live" && (
+          <div className={`mt-4 rounded-xl border p-4 text-sm ${readiness?.funded && readiness?.liveEnabled ? "border-emerald-200 bg-emerald-50/60" : "border-amber-200 bg-amber-50/60"}`}>
+            <p className="flex items-center gap-2 font-medium text-slate-900">
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+              {readiness === null ? "Checking your trading account…"
+                : !readiness.hasAccount ? "No trading account yet"
+                : !readiness.funded ? "Trading account has no funds"
+                : !readiness.liveEnabled ? "Live trading is off for your account"
+                : "Ready — every run re-checks this"}
+            </p>
+            <ul className="mt-2 space-y-1 pl-6 text-xs text-slate-600" style={{ listStyle: "disc" }}>
+              <li>Balance{readiness ? `: $${readiness.balance.toFixed(2)}` : ""} — read on-chain by KeeperHub before each order, not assumed from this screen.</li>
+              <li>If the balance can&rsquo;t cover the stake, that run is skipped — nothing partial is ever sent.</li>
+              <li>Live trading must be turned on for your account, separately from this bot.</li>
+            </ul>
+            {(!readiness?.hasAccount || !readiness?.funded || !readiness?.liveEnabled) && (
+              <Link href="/wallet" className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-purple-700 underline">
+                <Wallet className="h-3 w-3" /> Open trading wallet
+              </Link>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
@@ -246,6 +308,14 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
             {saving ? "Saving…" : saved ? "Saved" : "Save strategy"}
           </Button>
         </div>
+
+        {saved && !dirty && (
+          <p role="status" className="mt-3 text-xs text-emerald-700">
+            {botStatus === "ACTIVE"
+              ? "This bot is live — the change above took effect immediately on KeeperHub. Nothing further to click."
+              : "Saved as a draft. This bot is not running yet — turn it on above to publish it to KeeperHub."}
+          </p>
+        )}
 
         {error && (
           <p role="alert" className="mt-3 flex items-start gap-2 text-sm text-rose-700">
