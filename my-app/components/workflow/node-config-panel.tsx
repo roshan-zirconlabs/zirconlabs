@@ -21,6 +21,7 @@ import {
 } from "./store";
 import {
   TRIGGERS,
+  findActionByConfig,
   findTrigger,
   type FieldDef,
 } from "./registry";
@@ -164,8 +165,13 @@ export default function NodeConfigPanel() {
     fields = def?.fields ?? [];
     typeLabel = def?.label ?? t;
   } else {
+    const it = selected.data.config?.integrationType as string | undefined;
     const at = selected.data.config?.actionType as string | undefined;
-    const def = catalog.data?.find(a => a.actionType === at);
+    // Zircon's native blocks (Polymarket, logic) own their fields; otherwise
+    // fall back to the matching hosted-catalog action.
+    const def =
+      (it && at ? findActionByConfig(it, at) : undefined) ??
+      catalog.data?.find((a) => a.actionType === at);
     fields = def?.fields ?? [];
     typeLabel = def?.label ?? at ?? "Action";
   }

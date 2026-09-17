@@ -26,6 +26,8 @@ import {
   fromKeeperhubGraph,
   toKeeperhubGraph,
 } from "@/components/workflow/serialize";
+import { canvasFromStrategy, strategyFromCanvas } from "@/lib/workflow/canvas-strategy";
+import { strategySpec } from "@/lib/workflow/strategy";
 import dynamic from "next/dynamic";
 
 const WorkflowCanvas = dynamic(
@@ -82,7 +84,12 @@ function BotEditorInner({
         setBotStatus(json.bot?.status ?? "INACTIVE");
         setName(json.name ?? json.bot?.name ?? "");
 
-        const decoded = fromKeeperhubGraph(json.nodes, json.edges);
+        // A Polymarket bot is defined by its strategy record: render the
+        // friendly Polymarket blocks from it. Any other bot is a free-form
+        // graph of hosted KeeperHub actions.
+        const spec = strategySpec.safeParse(json.bot?.strategy);
+        const graph = spec.success ? canvasFromStrategy(spec.data) : { nodes: json.nodes, edges: json.edges };
+        const decoded = fromKeeperhubGraph(graph.nodes, graph.edges);
         const withAdds = ensureAddPlaceholders(decoded.nodes, decoded.edges);
         const laidOut = autoLayout(withAdds.nodes, withAdds.edges);
         setNodes(laidOut);
@@ -109,12 +116,21 @@ function BotEditorInner({
   const save = useCallback(async () => {
     setSaving(true);
     try {
-      const payload = toKeeperhubGraph(nodes, edges);
-      const res = await fetch(`/api/bots/${botId}/workflow`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...payload, name }),
-      });
+      // A canvas that contains a Polymarket "Place order" block IS a strategy:
+      // save it through the same pipeline the guided builder uses, so it
+      // compiles to a real, executing KeeperHub workflow (paper or live).
+      const spec = strategyFromCanvas(nodes);
+      const res = spec
+        ? await fetch(`/api/bots/${botId}/strategy`, {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ ...spec, name }),
+          })
+        : await fetch(`/api/bots/${botId}/workflow`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ ...toKeeperhubGraph(nodes, edges), name }),
+          });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || err?.message || "Save failed");

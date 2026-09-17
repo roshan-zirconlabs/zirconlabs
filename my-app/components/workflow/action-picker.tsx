@@ -3,13 +3,14 @@
 import { Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ActionIcon } from "./icons";
-import type { ActionDef } from "./registry";
+import { ACTIONS, type ActionDef } from "./registry";
 import { useHostedCatalog } from "./hosted-catalog";
 
 type Category = "all" | ActionDef["category"];
 
 const CATEGORIES: { id: Category; label: string }[] = [
   { id: "all", label: "All" },
+  { id: "polymarket", label: "Polymarket" },
   { id: "logic", label: "Logic" },
   { id: "io", label: "Integrations" },
 ];
@@ -26,8 +27,15 @@ export default function ActionPicker({
   const catalog = useHostedCatalog();
   const [category, setCategory] = useState<Category>("all");
 
+  // Zircon's native Polymarket + logic blocks come first, then anything else
+  // KeeperHub's live catalog offers (de-duped by id).
+  const all = useMemo(() => {
+    const seen = new Set(ACTIONS.map((a) => a.id));
+    return [...ACTIONS, ...(catalog.data ?? []).filter((a) => !seen.has(a.id))];
+  }, [catalog.data]);
+
   const filtered = useMemo(() => {
-    return (catalog.data ?? []).filter((a) => {
+    return all.filter((a) => {
       if (category !== "all" && a.category !== category) return false;
       if (!query.trim()) return true;
       const q = query.toLowerCase();
@@ -37,7 +45,7 @@ export default function ActionPicker({
         a.id.toLowerCase().includes(q)
       );
     });
-  }, [query, category, catalog.data]);
+  }, [query, category, all]);
 
   return (
     <div
@@ -82,9 +90,9 @@ export default function ActionPicker({
         </div>
 
         <div className="flex-1 overflow-y-auto p-2">
-          {catalog.isLoading && <p role="status" className="p-4 text-sm text-[var(--c-dim)]">Loading KeeperHub actions…</p>}
-          {catalog.error && <div role="alert" className="p-4 text-sm text-rose-700">KeeperHub actions are temporarily unavailable. <button onClick={() => catalog.refetch()} className="underline">Retry</button></div>}
-          {catalog.isLoading || catalog.error ? null : filtered.length === 0 ? (
+          {catalog.isLoading && <p role="status" className="px-4 pt-3 text-xs text-[var(--c-faint)]">Loading more KeeperHub actions…</p>}
+          {catalog.error && <div role="alert" className="px-4 pt-3 text-xs text-[var(--c-faint)]">More KeeperHub actions are temporarily unavailable. <button onClick={() => catalog.refetch()} className="underline">Retry</button></div>}
+          {filtered.length === 0 ? (
             <div className="py-10 text-center text-sm text-[var(--c-faint)]">
               No actions match your search.
             </div>

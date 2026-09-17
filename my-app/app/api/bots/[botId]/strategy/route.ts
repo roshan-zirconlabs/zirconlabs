@@ -40,11 +40,16 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   const bot = await prisma.bot.findFirst({ where: { id: (await params).botId, userId: session.user.id } });
   if (!bot) return NextResponse.json({ error: "Bot not found" }, { status: 404 });
 
-  const parsed = strategySpec.safeParse(await req.json().catch(() => null));
+  const raw = await req.json().catch(() => null);
+  const parsed = strategySpec.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Check the strategy settings." }, { status: 400, headers });
   }
   const spec = parsed.data;
+  // The canvas can rename the bot while saving its strategy; the guided builder
+  // sends no name and leaves it unchanged.
+  const rawName = typeof raw === "object" && raw ? (raw as { name?: unknown }).name : undefined;
+  const name = typeof rawName === "string" && rawName.trim() ? rawName.trim().slice(0, 100) : undefined;
 
   let tradingWalletAddress: string | null = null;
   if (spec.mode === "live") {
@@ -80,7 +85,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
   await prisma.bot.update({
     where: { id: bot.id },
-    data: { strategy: spec, workflow: JSON.parse(JSON.stringify(graph)) },
+    data: { strategy: spec, workflow: JSON.parse(JSON.stringify(graph)), ...(name ? { name } : {}) },
   });
 
   // A change to an already-published bot must take effect immediately, not
