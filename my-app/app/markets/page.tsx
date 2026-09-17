@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChartLine, Clock, ExternalLink, RefreshCw, Search, TrendingDown, TrendingUp, Zap } from "lucide-react";
+import { ChartLine, Clock, ExternalLink, RefreshCw, TrendingDown, TrendingUp, Zap } from "lucide-react";
 import { EmptyState, Notice, PageHeader, PageShell, StatusBadge } from "@/components/ui/page";
 import Skeleton from "@/components/ui/skeleton";
 
@@ -71,14 +71,9 @@ export default function MarketsPage() {
         accent="markets."
         description="Bitcoin up-or-down windows on Polymarket, with live odds. Prices refresh every 30 seconds."
         actions={
-          <>
-            <Link href="/trade" className="c-btn-ghost">
-              <Search className="h-4 w-4" /> Search all markets
-            </Link>
-            <Link href="/markets/graphs" className="c-btn-ghost">
-              <ChartLine className="h-4 w-4" /> Charts
-            </Link>
-          </>
+          <Link href="/markets/graphs" className="c-btn-ghost">
+            <ChartLine className="h-4 w-4" /> Charts
+          </Link>
         }
       />
 

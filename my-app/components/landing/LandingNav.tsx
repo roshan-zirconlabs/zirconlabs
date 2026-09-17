@@ -36,9 +36,9 @@ export default function LandingNav() {
           scrolled ? "c-glass bg-[rgba(8,10,32,0.72)] backdrop-blur-md" : "c-glass bg-[rgba(8,10,32,0.35)] backdrop-blur-md"
         }`}
       >
-        <Link href="/" className="flex items-center gap-2.5" aria-label="Zircon home">
+        <Link href="/" className="flex items-center gap-2.5" aria-label="Zircon Labs home">
           <OrbitMark className="h-7 w-7" />
-          <span className="text-[15px] font-semibold tracking-tight">Zircon</span>
+          <span className="text-[15px] font-semibold tracking-tight">Zircon Labs</span>
         </Link>
 
         <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">

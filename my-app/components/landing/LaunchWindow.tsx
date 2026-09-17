@@ -41,7 +41,7 @@ const FOOTER = [
 export default function LaunchWindow() {
   return (
     <>
-      <section aria-label="Zircon at a glance" className="px-5 py-20">
+      <section aria-label="Zircon Labs at a glance" className="px-5 py-20">
         <dl className="mx-auto grid max-w-6xl grid-cols-2 gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/10 lg:grid-cols-4">
           {STATS.map((s) => (
             <div key={s.label} className="flex flex-col-reverse gap-3 bg-[rgba(7,8,28,0.82)] p-7 sm:p-9">
@@ -80,9 +80,9 @@ export default function LaunchWindow() {
         <footer className="relative z-10 -mt-44 bg-gradient-to-b from-transparent to-[#05071a] px-5 pb-10 sm:-mt-56">
           <div className="mx-auto grid max-w-6xl gap-10 border-t border-white/10 pt-12 sm:grid-cols-[2fr_1fr_1fr]">
             <div>
-              <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Zircon home">
+              <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Zircon Labs home">
                 <OrbitMark className="h-8 w-8" />
-                <span className="text-lg font-semibold tracking-tight">Zircon</span>
+                <span className="text-lg font-semibold tracking-tight">Zircon Labs</span>
               </Link>
               <p className="mt-4 max-w-xs text-sm leading-relaxed text-[var(--c-faint)]">
                 Autonomous trading bots for Polymarket, built on KeeperHub.

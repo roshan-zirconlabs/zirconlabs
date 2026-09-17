@@ -17,7 +17,6 @@ export type KeeperhubExecutionStatus =
   | (string & {});
 
 const TERMINAL: ReadonlySet<string> = new Set(["success", "error", "system_error", "cancelled"]);
-const PRE_TERMINAL: ReadonlySet<string> = new Set(["pending", "running", "unconfirmed"]);
 
 export function isTerminalStatus(status: string): boolean {
   return TERMINAL.has(status.toLowerCase());

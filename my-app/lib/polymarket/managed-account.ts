@@ -48,13 +48,6 @@ export async function provisionManagedWallet(userId: string, email?: string | nu
   return { id, address: address as `0x${string}` };
 }
 
-export async function signTypedData(walletId: string, typedData: unknown): Promise<`0x${string}`> {
-  const payload = await privy(`/wallets/${encodeURIComponent(walletId)}/rpc`, { method: "POST", body: JSON.stringify({ method: "eth_signTypedData_v4", params: { typed_data: typedData } }) });
-  const signature = (payload.data as { signature?: unknown } | undefined)?.signature;
-  if (typeof signature !== "string" || !/^0x[0-9a-f]+$/i.test(signature)) throw new ManagedWalletError("PROVIDER_INVALID_SIGNATURE", "The wallet provider did not return a valid signature.", 502);
-  return signature as `0x${string}`;
-}
-
 export function managedWalletConfigured() { return Boolean(process.env.PRIVY_APP_ID?.trim() && process.env.PRIVY_APP_SECRET?.trim()); }
 
 /**

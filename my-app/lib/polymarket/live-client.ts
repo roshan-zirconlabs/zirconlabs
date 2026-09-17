@@ -18,7 +18,7 @@ import { builderAuthorization, builderKeyConfigured } from "@/lib/polymarket/bui
  * The returned client's `account.wallet` is the user's Deposit Wallet address —
  * the address that holds funds and appears as the order maker.
  */
-export async function createManagedPolymarketClient(walletId: string, _walletAddress?: string): Promise<SecureClient> {
+export async function createManagedPolymarketClient(walletId: string): Promise<SecureClient> {
   const appId = process.env.PRIVY_APP_ID?.trim();
   const appSecret = process.env.PRIVY_APP_SECRET?.trim();
   if (!appId || !appSecret) throw new ManagedWalletError("PROVIDER_NOT_CONFIGURED", "Managed wallet credentials are not configured.");

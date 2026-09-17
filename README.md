@@ -1,78 +1,100 @@
 # Zircon Labs
 
-Zircon Labs lets anyone build an automated Polymarket strategy without touching
-a wallet, a private key, or a workflow engine. You describe the strategy in
-plain language; Zircon compiles it into a real KeeperHub workflow, runs it on a
-schedule, and shows you every execution.
+Zircon Labs turns a trading signal into a guarded, traceable Polymarket bot, with
+KeeperHub as the execution layer. Pick a rule — or point a TradingView alert at
+your bot — and Zircon compiles it into a real KeeperHub workflow that trades the
+live BTC/ETH up-or-down markets every window. Nobody handles a private key, a
+gas token or a workflow engine.
 
-## How it actually works
+Live at [zirconlabs.org](https://www.zirconlabs.org).
+
+## How it works
 
 ```text
-Browser → Zircon (Next.js) → Supabase Postgres
-                │
-                ├── compiles your strategy into a KeeperHub workflow
-                │   (Schedule → HTTP Request → Condition → HTTP Request)
-                │
-                └── KeeperHub runs it on schedule and calls back:
-                      POST /api/workflow/signal   → which market, which direction
-                      POST /api/workflow/execute  → place the order
+Browser → Zircon (Next.js on Vercel) → Postgres (Supabase)
+             │
+             ├── compiles each bot into a KeeperHub workflow
+             │     schedule:  Schedule → [check balance] → HTTP signal → Condition → HTTP execute
+             │     webhook:   TradingView alert → [check balance] → HTTP execute
+             │
+             └── KeeperHub runs it and calls back, per bot:
+                   POST /api/workflow/signal    which market is open, which direction
+                   POST /api/workflow/execute   practice fill, or a signed live order
                                 │
-                                └── Polymarket CLOB, signed by the
-                                    user's own Privy-held wallet
+                                └── Polymarket CLOB, from the owner's own
+                                    Deposit Wallet (Privy key, gasless relayer)
 ```
 
-Two properties follow from this shape, and both are deliberate:
+- **KeeperHub orchestrates; it never holds user money.** Workflows carry no keys.
+  Live bots verify collateral on-chain through KeeperHub's
+  `web3/check-token-balance` before any order.
+- **Every callback is scoped to one bot.** Each workflow carries a token derived
+  from the server secret that authorises exactly that bot.
+- **The market is resolved server-side.** A TradingView alert supplies only a
+  direction; Zircon picks the open market and the per-window request id, so a
+  leaked webhook URL can at most place one capped order per window.
 
-- **KeeperHub orchestrates; it never holds your money.** The workflow contains
-  no keys and no funds. It calls Zircon, and Zircon signs with the wallet
-  belonging to that bot's owner.
-- **Every callback is scoped to one bot.** Each published workflow carries a
-  token derived from the server secret that authorises exactly one bot. A leaked
-  token cannot touch another user's wallet or trades.
+## Verifiable track records
 
-## What is real, and what is not
+A bot owner can publish a strategy once at least one of its trades has
+resolved. Published strategies appear at `/strategies`, and each has a public
+record at:
 
-- Backtests and practice ("paper") trades are research data. A practice fill is
-  priced against the live order book but no order is sent and no money moves.
-- Every workflow execution is a real KeeperHub run with a real run record.
-  Zircon does not simulate the engine or invent transaction hashes.
-- Real-money trades are placed through Polymarket's official TypeScript SDK from
-  a wallet provisioned per user. Zircon stores the wallet id and public address;
-  the provider holds the key. Zircon cannot withdraw your funds.
-- Real-money trading stays off until `POLYMARKET_CLOB_V2_ADAPTER_READY` and
-  `POLYMARKET_LIVE_ENABLED` are both `true`, the user's account is funded and
-  approved, and the user turns it on for their own account.
+```text
+GET /api/strategies/{workflowId}/track-record
+```
+
+The record is computed only from **KeeperHub execution records** and
+**Polymarket's on-chain resolution** — never from Zircon's database — and every
+settled trade carries its KeeperHub execution id and on-chain `conditionId`, so
+anyone (or any agent) can recompute it. Open positions are withheld; the live
+signal is what a subscription buys. Publishing also anchors the strategy with a
+transaction executed through KeeperHub (Ethereum Sepolia), linked on the page.
 
 ## Guardrails on a live bot
 
-- A per-window request id: one order per bot per market window, so a repeated
-  schedule tick cannot double-spend.
-- The order step never auto-retries.
-- The strategy is re-evaluated server-side before the order; if the market
-  rotated or the rule changed its mind, nothing is executed.
-- A per-user daily spend limit, reserved under an advisory lock before signing.
-- A per-share price cap, and a check against the market's minimum order size.
+- One order per bot per market window, enforced by a deterministic request id.
+- The order step never auto-retries; an uncertain submission stays `UNKNOWN`.
+- The rule is re-evaluated server-side before ordering; if the market rotated
+  or the signal changed, nothing executes.
+- A per-user daily spend limit, reserved under a Postgres advisory lock before
+  signing, plus a per-share price cap and the market's minimum order size.
+- Real money stays off until the operator enables it **and** the user turns it
+  on for their own account.
+
+## Repository
+
+| Path | What it is |
+| --- | --- |
+| `my-app/` | The Next.js application — UI, API routes, workflow compiler, Prisma schema |
+| `my-app/lib/workflow/` | Strategy spec, workflow compiler, candle providers, callback tokens |
+| `my-app/lib/track-record.ts` | Verifiable track-record engine |
+| `my-app/lib/polymarket/` | Deposit Wallet client, cash-out, spend reservation |
+| `DEPLOYMENT.md` | Production setup and the live-trading checklist |
+
+The KeeperHub-side Polymarket plugin (market status, live odds, market
+resolution, signal evaluation, paper orders) lives on
+[`roshan-zirconlabs/keeperhub`](https://github.com/roshan-zirconlabs/keeperhub/tree/feat/polymarket-verifiable-resolution).
 
 ## Local development
+
+Requires Node 24+ and Yarn 1.
 
 ```bash
 cd my-app
 yarn install
-cp .env.example .env     # then fill it in — see the comments in that file
-yarn prisma generate
+cp .env.example .env     # fill it in — every variable is documented inline
 yarn db:migrate
 yarn dev
 ```
 
-`AUTH_URL` must match the origin you actually browse to, or Google sign-in will
-fail and `/api/health` will report `AUTH_ORIGIN_MISMATCH`. For local work that
-means `http://localhost:3000`, not your production domain.
+`AUTH_URL` must match the origin you browse to (`http://localhost:3000`
+locally), or Google sign-in fails and `/api/health` reports
+`AUTH_ORIGIN_MISMATCH`. Scheduled bots need a public `ZLABS_PUBLIC_URL`;
+KeeperHub cannot call back to `localhost`.
 
-Before deploying:
+Before shipping:
 
 ```bash
 yarn tsc --noEmit && yarn lint && yarn test && yarn build
 ```
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for production setup and the live-trading
-enablement checklist.

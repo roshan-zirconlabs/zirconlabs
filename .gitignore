@@ -1,2 +1,5 @@
 .next/
-graphify-out/[DiscordKit]*.txt
+graphify-out/
+[DiscordKit]*.txt
+.claude/
+.DS_Store

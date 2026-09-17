@@ -1,4 +1,3 @@
-import axios from "axios";
 import { isAddress } from "viem";
 import { fetchMarket } from "../polymarket-markets";
 
@@ -6,9 +5,6 @@ export const HOST = "https://clob.polymarket.com";
 export const DATA_API_BASE = "https://data-api.polymarket.com";
 export const GAMMA_API_BASE = "https://gamma-api.polymarket.com";
 export const CHAIN_ID = 137;
-// Legacy compatibility constant for paper-data callers. Managed accounts do
-// not select a signature type in the user interface.
-export const SIGNATURE_TYPE = 2;
 
 export type PolymarketPosition = {
   asset: string;
@@ -46,56 +42,6 @@ export async function getTokenIds(
   }
 }
 
-export async function getPrices(
-  yesTokenId: string,
-  noTokenId: string,
-): Promise<{
-  yesBuy: number;
-  yesSell: number;
-  noBuy: number;
-  noSell: number;
-} | null> {
-  try {
-    const payload = [
-      { token_id: yesTokenId, side: "BUY" },
-      { token_id: yesTokenId, side: "SELL" },
-      { token_id: noTokenId, side: "BUY" },
-      { token_id: noTokenId, side: "SELL" },
-    ];
-    const response = await axios.post(`${HOST}/prices`, payload, {
-      headers: { "Content-Type": "application/json" },
-      timeout: 5000,
-    });
-    if (response.status !== 200) return null;
-    const data = response.data;
-    const yesBuy = parseFloat(data?.[yesTokenId]?.BUY || "0") || 0;
-    const yesSell = parseFloat(data?.[yesTokenId]?.SELL || "0") || 0;
-    const noBuy = parseFloat(data?.[noTokenId]?.BUY || "0") || 0;
-    const noSell = parseFloat(data?.[noTokenId]?.SELL || "0") || 0;
-    if (yesBuy <= 0 || noBuy <= 0) return null;
-    return { yesBuy, yesSell, noBuy, noSell };
-  } catch {
-    return null;
-  }
-}
-
-export async function getPrice(
-  tokenId: string,
-  side: "BUY" | "SELL",
-): Promise<number | null> {
-  try {
-    const response = await axios.post(
-      `${HOST}/prices`,
-      [{ token_id: tokenId, side }],
-      { headers: { "Content-Type": "application/json" }, timeout: 5000 },
-    );
-    const price = parseFloat(response.data[tokenId]?.[side] || "0");
-    return price > 0 ? price : null;
-  } catch {
-    return null;
-  }
-}
-
 /** Batch fetch prices for multiple tokens at once. */
 export async function getBatchPrices(
   tokenIds: string[],
@@ -105,12 +51,13 @@ export async function getBatchPrices(
   if (tokenIds.length === 0) return result;
 
   try {
-    const payload = tokenIds.map((id) => ({ token_id: id, side }));
-    const response = await axios.post(`${HOST}/prices`, payload, {
+    const response = await fetch(`${HOST}/prices`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      timeout: 10000,
+      body: JSON.stringify(tokenIds.map((id) => ({ token_id: id, side }))),
+      signal: AbortSignal.timeout(10000),
     });
-    const data = response.data;
+    const data = (await response.json()) as Record<string, Record<string, string>> | null;
     for (const id of tokenIds) {
       const price = parseFloat(data?.[id]?.[side] || "0");
       if (price > 0) result.set(id, price);
@@ -121,68 +68,11 @@ export async function getBatchPrices(
   return result;
 }
 
-export async function getActualPosition(
-  funderAddress: string,
-  slug: string,
-  tokenId: string,
-  maxRetries: number = 3,
-): Promise<{ shares: number; avgPrice: number } | null> {
-  const normalizedTokenId = String(tokenId).trim();
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const url = `${DATA_API_BASE}/positions?user=${funderAddress}`;
-      const response = await axios.get(url, { timeout: 5000 });
-      const positions = response.data || [];
-
-      if (!Array.isArray(positions)) {
-        if (attempt < maxRetries - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          continue;
-        }
-        return null;
-      }
-
-      const position = positions.find(
-        (p: { asset?: string; slug?: string; eventSlug?: string }) => {
-          const asset = p.asset != null ? String(p.asset).trim() : "";
-          if (asset !== normalizedTokenId) return false;
-          const pSlug = (p.slug || p.eventSlug || "").trim();
-          return pSlug === slug || pSlug.endsWith(slug) || slug.endsWith(pSlug);
-        },
-      );
-
-      if (!position) {
-        if (attempt < maxRetries - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          continue;
-        }
-        return null;
-      }
-
-      const shares = parseFloat(position.size ?? position.shares ?? "0") || 0;
-      const avgPrice =
-        parseFloat(position.avgPrice ?? position.avg_price ?? "0") || 0;
-
-      if (shares > 0) return { shares, avgPrice };
-      if (attempt < maxRetries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        continue;
-      }
-      return { shares, avgPrice };
-    } catch {
-      if (attempt < maxRetries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-    }
-  }
-  return null;
-}
-
 /**
  * Read the complete set of positions for a Polymarket funder address.
  *
  * This endpoint is public and intentionally accepts an injected fetcher so
- * callers can test the response boundary without mocking axios globally.
+ * callers can test the response boundary without mocking fetch globally.
  * It never accepts credentials and returns null on malformed/upstream data so
  * a caller cannot mistake an unavailable response for an empty portfolio.
  */
@@ -230,82 +120,4 @@ export async function getCurrentPositions(
   } catch {
     return null;
   }
-}
-
-export async function placeOrder(
-  client: { createAndPostMarketOrder: (order: { tokenID: string; amount: number; side: "BUY" | "SELL" }, options?: unknown, orderType?: string) => Promise<unknown> } | null,
-  tokenId: string,
-  side: "BUY" | "SELL",
-  amount: number,
-  maxRetries: number = 3,
-  isTestMode: boolean = false,
-  logSuccess: boolean = true,
-): Promise<boolean> {
-  if (isTestMode) return true;
-  if (!client) return false;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      if (attempt === 1) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.random() * 1000 + 500),
-        );
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-
-      const response = await client.createAndPostMarketOrder(
-        { tokenID: tokenId, amount, side },
-        undefined,
-        "FAK",
-      );
-
-      if (
-        response &&
-        ((response as Record<string, unknown>).errorMsg ||
-          (response as Record<string, unknown>).error)
-      ) {
-        throw new Error(
-          String(
-            (response as Record<string, unknown>).errorMsg ||
-              (response as Record<string, unknown>).error,
-          ),
-        );
-      }
-
-      return true;
-    } catch (error: unknown) {
-      const err = error as {
-        response?: { data?: { error?: string }; status?: number };
-        message?: string;
-        status?: number;
-      };
-      const errorMsg =
-        err.response?.data?.error || err.message || String(error);
-
-      if (
-        errorMsg.includes("not enough balance") ||
-        errorMsg.includes("allowance")
-      ) {
-        if (logSuccess)
-          console.error("Order failed: insufficient balance/allowance");
-        return false;
-      }
-
-      const statusCode = err.response?.status || err.status;
-      if (statusCode === 403) {
-        if (logSuccess) console.error("Order blocked by Cloudflare (403)");
-        return false;
-      }
-
-      if (attempt >= maxRetries) {
-        if (logSuccess)
-          console.error(
-            `Order failed after ${maxRetries} attempts: ${errorMsg}`,
-          );
-        return false;
-      }
-    }
-  }
-  return false;
 }

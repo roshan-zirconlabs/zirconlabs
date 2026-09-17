@@ -12,7 +12,6 @@ const NAV = [
   { href: "/bots", label: "Bots" },
   { href: "/strategies", label: "Strategies" },
   { href: "/markets", label: "Markets" },
-  { href: "/trade", label: "Trade" },
   { href: "/backtest", label: "Backtest" },
   { href: "/wallet", label: "Wallet" },
   { href: "/connections", label: "Connections" },
@@ -93,9 +92,9 @@ export default function Header() {
         Skip to content
       </a>
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 rounded-full border border-white/10 bg-[rgba(8,10,32,0.78)] pl-4 pr-2 shadow-[0_20px_50px_-30px_rgba(0,0,0,0.9)] backdrop-blur-md">
-        <Link href={signedIn ? "/dashboard" : "/"} className="flex shrink-0 items-center gap-2.5" aria-label="Zircon home">
+        <Link href={signedIn ? "/dashboard" : "/"} className="flex shrink-0 items-center gap-2.5" aria-label="Zircon Labs home">
           <OrbitMark className="h-7 w-7" />
-          <span className="text-[15px] font-semibold tracking-tight">Zircon</span>
+          <span className="text-[15px] font-semibold tracking-tight">Zircon Labs</span>
         </Link>
 
         <nav aria-label="Main navigation" className="hidden items-center gap-0.5 lg:flex">

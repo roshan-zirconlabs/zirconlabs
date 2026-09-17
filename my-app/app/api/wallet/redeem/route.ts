@@ -6,7 +6,6 @@ import { prisma } from "@/lib/prisma";
 import { createManagedPolymarketClient } from "@/lib/polymarket/live-client";
 import { managedWalletConfigured } from "@/lib/polymarket/managed-account";
 import { getCurrentPositions } from "@/lib/trading/polymarket-utils";
-import { readAccountReadiness } from "@/lib/polymarket/account-readiness";
 import { tradingDepositWallet } from "@/lib/polymarket/account";
 
 export const runtime = "nodejs";
@@ -85,7 +84,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "That market has not resolved yet. Winnings can only be claimed after it settles." }, { status: 409, headers });
     }
 
-    const client = await createManagedPolymarketClient(account.providerWalletId, account.walletAddress);
+    const client = await createManagedPolymarketClient(account.providerWalletId);
     const handle = await redeemPositions(client, { conditionId: parsed.data.conditionId });
     const txHash = handle.transactionHash;
 

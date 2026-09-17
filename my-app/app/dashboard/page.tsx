@@ -26,7 +26,7 @@ import { describeBot, useBots, useWalletSummary } from "@/hooks/useBots";
 const SHORTCUTS = [
   { href: "/backtest", label: "Backtest a strategy", icon: FlaskConical },
   { href: "/markets/graphs", label: "Market charts", icon: ChartLine },
-  { href: "/trade", label: "Place a trade", icon: Telescope },
+  { href: "/strategies", label: "Strategy feed", icon: Telescope },
   { href: "/connections", label: "Connections", icon: Cable },
 ];
 

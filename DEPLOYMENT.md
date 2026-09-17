@@ -2,86 +2,81 @@
 
 ## 1. What you are deploying
 
-One Next.js application. There is no separate backend, no self-hosted workflow
-engine, and no service to build besides this app.
+One Next.js application. There is no separate backend and no self-hosted
+workflow engine.
 
 ```text
 Vercel (Next.js)  →  Supabase Postgres
         │
-        ├─→ KeeperHub hosted API      (creates, schedules and runs workflows)
-        ├─→ Polymarket Gamma + CLOB   (markets, order books, orders)
-        ├─→ Binance klines            (candles for strategy rules)
-        └─→ Privy                     (one managed Polygon wallet per user)
+        ├─→ KeeperHub hosted API       creates, schedules and runs workflows
+        ├─→ Polymarket Gamma + CLOB    markets, order books, orders, resolution
+        ├─→ Binance → Coinbase → Bitstamp   candles (first that answers wins)
+        └─→ Privy                      one managed wallet per user
 ```
 
-> If you previously hit "Ran out of memory (used over 8GB)" on Render, that was
-> from building a KeeperHub fork. Do not self-host KeeperHub. This app builds in
-> roughly 60 seconds at about 1.1 GB peak memory.
+Do not self-host KeeperHub. This app builds in about a minute on Vercel.
 
 ## 2. Request flow for a running bot
 
-1. KeeperHub's Schedule trigger fires on the strategy's cron.
-2. `HTTP Request` → `POST /api/workflow/signal` — Zircon resolves the market
-   that is open right now, pulls closed candles, evaluates the rule, and returns
-   a decision plus a per-window request id.
-3. `Condition` — continues only when the decision is tradable.
-4. `HTTP Request` → `POST /api/workflow/execute` — Zircon re-evaluates the rule,
-   then records a practice fill or submits a signed order from the bot owner's
-   wallet.
+1. The workflow trigger fires — a `Schedule` on the strategy's cadence, or a
+   `Webhook` hit by a TradingView alert.
+2. Live bots only: `web3/check-token-balance` confirms collateral on-chain.
+3. Schedule bots: `HTTP Request` → `POST /api/workflow/signal` resolves the open
+   market, evaluates the rule on closed candles, and returns a decision plus a
+   per-window request id. A `Condition` continues only when it is tradable.
+4. `HTTP Request` → `POST /api/workflow/execute` re-evaluates, then records a
+   practice fill or submits a signed order from the owner's Deposit Wallet.
 
 Both callbacks authenticate with a bearer token derived from
 `ZLABS_INGEST_SECRET` and the bot id. A token authorises exactly one bot.
 
 ## 3. Database
 
-Create a Supabase (or any Postgres) project, then:
-
-- **`DATABASE_URL`** — on Vercel, the shared **Transaction pooler** string
-  (port 6543) from Supabase Connect. A direct `db.<ref>.supabase.co` host needs
-  IPv6 and will fail on Vercel; `/api/health` reports this as
-  `SUPABASE_DIRECT_CONNECTION`.
+- **`DATABASE_URL`** — on Vercel, the Supabase **Transaction pooler** string
+  (port 6543). A direct `db.<ref>.supabase.co` host needs IPv6 and fails on
+  Vercel; `/api/health` reports it as `SUPABASE_DIRECT_CONNECTION`.
 - **`DIRECT_URL`** — optional, for migrations over IPv4 (Session pooler, 5432).
 
-Apply migrations on every release:
+Apply migrations on every release (a release step, not a build step):
 
 ```bash
-yarn db:migrate
+cd my-app && yarn db:migrate
 ```
 
-This is a release step, not a build step. If it is skipped, API routes return
-`SCHEMA_MIGRATION_REQUIRED` rather than failing obscurely.
+If skipped, API routes return `SCHEMA_MIGRATION_REQUIRED`.
 
 ## 4. Environment variables
 
-Copy `my-app/.env.example` — it documents every variable inline. The ones that
-most often go wrong:
+`my-app/.env.example` documents every variable. The ones that most often go
+wrong:
 
 | Variable | Why it matters |
 | --- | --- |
-| `AUTH_URL` | Must equal the origin the browser lands on **after redirects**. A mismatch breaks Google sign-in. Do not also set `NEXTAUTH_URL` to a different origin. |
-| `ZLABS_PUBLIC_URL` | The public HTTPS origin KeeperHub calls back on. Falls back to `AUTH_URL`. Must be reachable from the internet — `localhost` will never work for a scheduled bot. |
-| `ZLABS_INGEST_SECRET` | Derives every bot's callback token. Rotating it invalidates all published workflows; republish each bot afterwards. |
+| `AUTH_URL` | Must equal the origin the browser lands on **after redirects**, or Google sign-in breaks. Do not also set `NEXTAUTH_URL` to a different origin. |
+| `ZLABS_PUBLIC_URL` | Public HTTPS origin KeeperHub calls back on (falls back to `AUTH_URL`). `localhost` never works for a scheduled bot. |
+| `ZLABS_INGEST_SECRET` | Derives every bot's callback token. Rotating it invalidates all published workflows — republish each bot. |
 | `ENCRYPTION_KEY` | Exactly 64 hex characters (`openssl rand -hex 32`). |
-| `KEEPERHUB_API_KEY` | The platform organization key. With it set, users never handle a KeeperHub key. |
+| `KEEPERHUB_API_KEY` | Platform organization key. With it set, users never handle a KeeperHub key. |
 
-Register `<AUTH_URL>/api/auth/callback/google` in the Google Cloud console for
-both the apex and `www` domains you actually serve.
+Register `<AUTH_URL>/api/auth/callback/google` in Google Cloud for every domain
+you serve (apex and `www`).
 
 ## 5. KeeperHub
 
-Zircon compiles strategies into workflows built only from actions KeeperHub
-publishes: `Schedule`, `HTTP Request` and `Condition`.
+Workflows are built only from actions KeeperHub publishes: `Schedule`,
+`Webhook`, `HTTP Request`, `Condition` and `web3/check-token-balance`.
 
 - **`HTTP Request` requires a KeeperHub Pro plan.** Without it, publishing fails
-  with the catalog's own error. Verify your plan before launch.
-- With `KEEPERHUB_API_KEY` set, all users' workflows live in that one
-  organization. Workflow names carry `zircon:<botId>` so every run is
-  attributable. The organization's wallet is **not** used for trading — orders
-  are signed by each user's own wallet.
-- A user who prefers their own environment can connect a `kh_` key under
-  `/connections`; it takes precedence over the platform key for that user.
+  with the catalog's own error.
+- All platform users' workflows live in the `KEEPERHUB_API_KEY` organization,
+  named `… · zircon:<botId>` so every run is attributable. A user can connect
+  their own `kh_` key under `/connections`; it takes precedence for them.
+- The organization's Turnkey wallet signs the **publication attestation** for
+  listed strategies — a 0-value transaction on Ethereum Sepolia. Keep a little
+  Sepolia ETH in it; without gas, publishing still works but no on-chain link is
+  recorded. It is never used for trading.
 
-Verify the catalog is reachable from your deployment:
+Check the catalog from your deployment:
 
 ```bash
 curl -s https://<your-domain>/api/keeperhub/catalog | head -c 200
@@ -91,59 +86,52 @@ curl -s https://<your-domain>/api/keeperhub/catalog | head -c 200
 
 ```bash
 cd my-app
-yarn tsc --noEmit
-yarn lint
-yarn test
-yarn build
-```
-
-Then, against the deployed domain:
-
-```bash
+yarn tsc --noEmit && yarn lint && yarn test && yarn build
 curl -s https://<your-domain>/api/health
 ```
 
-`status: "ok"` means required variables are present, the auth origin matches,
-and the database answers with the expected schema. Anything else names the
-specific problem and its fix.
+`"status": "healthy"` means required variables are present, the auth origin
+matches, and the database answers with the expected schema. Anything else
+names the problem.
 
-Finally, sign in, create a bot, save a practice strategy, press **What would it
-do right now?**, then **Publish & activate**. A run should appear in KeeperHub
-within one schedule window.
+Then: sign in, create a bot, save a practice strategy, turn it on, and confirm a
+run appears on the bot page within one window.
 
 ## 7. Enabling real-money trading
 
-Practice mode needs none of this. Turn on real money only after every step
-below passes.
+Practice mode needs none of this.
 
 1. Set `PRIVY_APP_ID` and `PRIVY_APP_SECRET`.
-2. Each user opens `/wallet` and creates their trading account (one isolated
-   Polygon wallet, key held by Privy).
-3. The user funds it with Polymarket collateral (pUSD) through the bridge on
-   that page, **and** sends a small amount of POL for gas.
-4. The user presses **Authorise trading** to grant Polymarket's exchange
-   contracts the ERC-20 and ERC-1155 approvals. Without this, orders cannot
-   settle — the readiness panel shows the missing count.
-5. Set `POLYMARKET_CLOB_V2_ADAPTER_READY="true"` and
-   `POLYMARKET_LIVE_ENABLED="true"` and redeploy.
-6. The user sets a daily spend limit and turns on live trading for their
-   account.
-7. Place one small order through `/trade` and confirm the receipt and the
-   Polymarket position before letting a bot trade live.
+2. Mint a builder key and set `POLYMARKET_BUILDER_KEY`, `_SECRET` and
+   `_PASSPHRASE`:
+   ```bash
+   cd my-app && npx tsx --env-file=.env scripts/mint-builder-key.ts
+   ```
+   Polymarket rejects plain-wallet makers; the builder key authorizes gasless
+   creation of each user's Deposit Wallet through Polymarket's relayer. No
+   token approvals or POL are needed.
+3. Set `POLYMARKET_CLOB_V2_ADAPTER_READY="true"` and
+   `POLYMARKET_LIVE_ENABLED="true"`, then redeploy.
+4. Each user opens `/wallet`, creates their trading account, funds it through
+   the deposit address shown there, sets a daily limit, and turns on live
+   trading.
+5. Switch one bot to live with the smallest stake and confirm the order and the
+   Polymarket position before trusting it with more.
 
-### Safety properties to preserve if you modify this code
+### Safety properties to preserve
 
-- One order per bot per market window, enforced by a deterministic request id.
-- The execute step must never auto-retry.
+- One order per bot per market window, via a deterministic request id.
+- The execute step never auto-retries.
 - Daily spend is reserved under a Postgres advisory lock *before* signing.
-- An uncertain submission stays `UNKNOWN` and holds its reservation; it is never
-  retried automatically and never reported as success.
+- An uncertain submission stays `UNKNOWN`, holds its reservation, and is never
+  reported as success.
 
 ## 8. Operational notes
 
-- `/api/cron/fetch-markets` is a scheduled refresh; wire it to Vercel Cron if
-  you want warm market data.
-- There is no filesystem cache anywhere in the request path. Market data is read
-  live, which is what makes the app work on serverless.
-- Logs never contain wallet keys or KeeperHub keys. Connection errors are
-  returned as codes, not raw upstream messages.
+- Market data is read live; there is no filesystem cache in any request path.
+- `yarn check:deployment` runs the same configuration checks as `/api/health`
+  from your terminal.
+- Logs never contain wallet or KeeperHub keys; upstream errors are returned as
+  codes.
+- Billing (`/billing`) is optional and reports "not configured" without Stripe
+  variables.

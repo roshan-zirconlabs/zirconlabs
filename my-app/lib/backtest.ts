@@ -423,7 +423,7 @@ export function analyzeBacktest({
   const topWinners = sortedByPnl.slice(0, 10);
   const topLosers = sortedByPnl.slice(Math.max(sortedByPnl.length - 10, 0));
 
-  const scalping = buildScalpingAnalysis(matched, parsedSignals);
+  const scalping = buildScalpingAnalysis(matched);
   const marketPerformance = buildMarketPerformance(matched);
   const timeframeAnalysis = buildTimeframeAnalysis(matched);
 
@@ -435,10 +435,10 @@ export function analyzeBacktest({
       ? `${new Date(minTs * 1000).toISOString().slice(0, 10)} to ${new Date(maxTs * 1000).toISOString().slice(0, 10)}`
       : "none";
 
-  const tpAnalysis = buildTpAnalysis(matched, marketRows, stakeUsd);
+  const tpAnalysis = buildTpAnalysis(matched, marketRows);
   const etHourly = buildEtHourlyStats(matched);
   const weekdayStats = buildWeekdayStats(matched);
-  const filterGrid = buildFilterGrid(matched, stakeUsd);
+  const filterGrid = buildFilterGrid(matched);
   const entryTiming = buildEntryTimingAnalysis(matched, marketRows);
   const recommendations = buildRecommendations(
     matched,
@@ -1672,7 +1672,6 @@ function buildFilterCandidates(matched: MatchedTrade[]): FilterCandidate[] {
 
 function buildScalpingAnalysis(
   matched: MatchedTrade[],
-  signals: ParsedSignal[],
 ): ScalpingAnalysis | null {
   if (matched.length < 3) return null;
 
@@ -1847,7 +1846,6 @@ function buildTimeframeAnalysis(matched: MatchedTrade[]): TimeframeAnalysis[] {
 function buildTpAnalysis(
   matched: MatchedTrade[],
   marketRows: MarketRow[],
-  stakeUsd: number,
 ): TpLevelStat[] {
   const slugToRow = new Map<string, MarketRow>();
   for (const r of marketRows) slugToRow.set(r.slug, r);
@@ -1975,7 +1973,6 @@ function buildWeekdayStats(matched: MatchedTrade[]): WeekdayStat[] {
 
 function buildFilterGrid(
   matched: MatchedTrade[],
-  stakeUsd: number,
 ): { byPnl: FilterGridResult[]; byWr: FilterGridResult[] } {
   if (matched.length < 5) return { byPnl: [], byWr: [] };
 

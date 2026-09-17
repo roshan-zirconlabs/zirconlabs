@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, duplicate: true, status: reserved.attempt.status, message: "This window is already being executed." }, { status: 202, headers });
     }
 
-    const client = await createManagedPolymarketClient(account.providerWalletId, account.walletAddress);
+    const client = await createManagedPolymarketClient(account.providerWalletId);
     const response = await client.placeMarketOrder({
       assetId: outcome.assetId, amount: spec.data.stakeUsd, maxPrice: spec.data.maxPrice,
       side: OrderSide.BUY, orderType: OrderType.FOK,

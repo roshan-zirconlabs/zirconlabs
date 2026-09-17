@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     });
     recordId = record.id;
 
-    const client = await createManagedPolymarketClient(account.providerWalletId, account.walletAddress);
+    const client = await createManagedPolymarketClient(account.providerWalletId);
     const handle = await transferErc20(client, { amount, recipientAddress: destination, tokenAddress: COLLATERAL_TOKEN });
     const txHash = handle.transactionHash;
 
