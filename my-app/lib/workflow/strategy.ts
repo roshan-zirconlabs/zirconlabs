@@ -21,8 +21,6 @@ export const RULES = [
   { id: "momentum", label: "Follow the trend", help: "Buy the direction the last candle moved." },
   { id: "reversal", label: "Bet against the last move", help: "Buy the opposite of the last candle." },
   { id: "sma-cross", label: "Moving-average crossover", help: "Buy UP while the fast average is above the slow average." },
-  { id: "always-up", label: "Always buy UP", help: "No condition — buys UP every run. Useful for testing." },
-  { id: "always-down", label: "Always buy DOWN", help: "No condition — buys DOWN every run. Useful for testing." },
 ] as const;
 
 /**
@@ -93,9 +91,6 @@ export type SignalDecision = {
  * guessing when there is not enough history to evaluate the rule.
  */
 export function evaluateRule(spec: StrategySpec, candles: Candle[]): SignalDecision {
-  if (spec.rule === "always-up") return { direction: "UP", reason: "Unconditional UP strategy." };
-  if (spec.rule === "always-down") return { direction: "DOWN", reason: "Unconditional DOWN strategy." };
-
   if (candles.length < 2) return { direction: null, reason: "Not enough candle history to evaluate the rule." };
   const closes = candles.map(c => c.close);
   const last = candles[candles.length - 1];

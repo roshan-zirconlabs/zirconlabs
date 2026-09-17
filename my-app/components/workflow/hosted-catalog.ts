@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { ACTIONS, type ActionDef, type FieldDef } from "./registry";
+import type { ActionDef, FieldDef } from "./registry";
 
 type Schema = { label: string; description?: string; integration?: string; featureEnabled?: boolean; requiredPlan?: string; requiredFields?: Record<string, string>; optionalFields?: Record<string, string> };
 export function useHostedCatalog() {
@@ -11,12 +11,12 @@ export function useHostedCatalog() {
     return Object.entries(data.actions).filter(([, a]) => a.featureEnabled !== false).map(([id, a]) => ({
       id, actionType: id, integrationType: a.integration || "system", label: a.label,
       description: [a.description || id, a.requiredPlan ? `Requires KeeperHub ${a.requiredPlan}` : ""].filter(Boolean).join(". "),
-      iconName: "Globe", category: inferCategory(a.integration), source: "keeperhub", availability: "live",
+      category: inferCategory(a.integration),
       fields: [...Object.entries(a.requiredFields ?? {}), ...Object.entries(a.optionalFields ?? {})].filter(([key]) => !key.startsWith("_")).map(([key, type]): FieldDef => ({
         key, label: key, kind: inferFieldKind(type), description: type,
         required: key in (a.requiredFields ?? {}),
       })),
-    })) as ActionDef[];
+    }));
   } });
 }
 
@@ -31,17 +31,5 @@ function inferFieldKind(type: string): FieldDef["kind"] {
 
 function inferCategory(integration?: string): ActionDef["category"] {
   const value = (integration ?? "").toLowerCase();
-  if (value.includes("polymarket")) return "polymarket";
-  if (value.includes("logic") || value.includes("code") || value === "system") return "logic";
-  if (value.includes("web3") || value.includes("aave") || value.includes("safe") || value.includes("defi")) return "io";
-  return "io";
-}
-
-/** Local definitions are intentionally editor-only until a verified adapter exists. */
-export function localPaperActions(): ActionDef[] {
-  return ACTIONS.map((action) => ({
-    ...action,
-    source: action.source ?? "zircon",
-    availability: action.availability ?? "paper",
-  }));
+  return value.includes("logic") || value.includes("code") || value === "system" ? "logic" : "io";
 }

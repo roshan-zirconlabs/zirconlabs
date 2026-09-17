@@ -83,12 +83,12 @@ export function fromKeeperhubGraph(
         }))
     : [];
 
-  // Drop unconfigured action nodes (KH seeds an empty action by default)
+  // Drop unconfigured action nodes (KH seeds an empty action by default).
+  // Built-in KeeperHub actions carry only an actionType, so that alone counts.
   const drop = new Set<string>();
   const nodes = decoded.filter((n) => {
     if (n.type !== "action") return true;
-    const cfg = n.data.config ?? {};
-    const ok = !!cfg.integrationType && !!cfg.actionType;
+    const ok = !!n.data.config?.actionType;
     if (!ok) drop.add(n.id);
     return ok;
   });

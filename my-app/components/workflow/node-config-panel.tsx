@@ -21,7 +21,6 @@ import {
 } from "./store";
 import {
   TRIGGERS,
-  findActionByConfig,
   findTrigger,
   type FieldDef,
 } from "./registry";
@@ -158,7 +157,6 @@ export default function NodeConfigPanel() {
   const isTrigger = selected.data.type === "trigger";
   let fields: FieldDef[] = [];
   let typeLabel = "";
-  let paperOnly = false;
 
   if (isTrigger) {
     const t = (selected.data.config?.triggerType as string) ?? "Manual";
@@ -166,12 +164,10 @@ export default function NodeConfigPanel() {
     fields = def?.fields ?? [];
     typeLabel = def?.label ?? t;
   } else {
-    const it = selected.data.config?.integrationType as string | undefined;
     const at = selected.data.config?.actionType as string | undefined;
-    const def = catalog.data?.find(a => a.actionType === at) ?? (it && at ? findActionByConfig(it, at) : undefined);
+    const def = catalog.data?.find(a => a.actionType === at);
     fields = def?.fields ?? [];
-    typeLabel = def?.label ?? "Action";
-    paperOnly = def?.availability === "paper" || def?.source === "zircon";
+    typeLabel = def?.label ?? at ?? "Action";
   }
 
   return (
@@ -205,12 +201,6 @@ export default function NodeConfigPanel() {
         </Field>
 
         <ActiveMarketPreview config={selected.data.config ?? {}} />
-
-        {!isTrigger && paperOnly && (
-          <div role="status" className="mb-4 rounded-xl border border-amber-300/40 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-            Paper demo only. This local Polymarket action is not a KeeperHub-hosted action and cannot be published for live execution yet.
-          </div>
-        )}
 
         {isTrigger && (
           <Field label="Trigger type">

@@ -181,3 +181,19 @@ test("ensureAddPlaceholders adds an interactive add node to leaf action nodes", 
   const addEdge = withAdds.edges.find((e) => e.target === addNode?.id);
   assert.equal(addEdge?.source, "step1");
 });
+
+test("fromKeeperhubGraph keeps built-in KeeperHub actions that carry only an actionType", () => {
+  const { nodes, edges } = fromKeeperhubGraph(
+    [
+      { id: "t", type: "trigger", data: { type: "trigger", config: { triggerType: "Schedule" } } },
+      { id: "signal", type: "action", data: { type: "action", label: "Signal", config: { actionType: "HTTP Request" } } },
+      { id: "gate", type: "action", data: { type: "action", label: "Gate", config: { actionType: "Condition" } } },
+    ],
+    [
+      { id: "e1", source: "t", target: "signal" },
+      { id: "e2", source: "signal", target: "gate" },
+    ],
+  );
+  assert.deepEqual(nodes.map((n) => n.id), ["t", "signal", "gate"]);
+  assert.equal(edges.length, 2);
+});

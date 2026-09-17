@@ -1,11 +1,9 @@
 "use client";
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Box } from "lucide-react";
 import { memo } from "react";
 import { cn } from "@/lib/cn";
-import { ACTION_ICONS } from "../icons";
-import { findActionByConfig } from "../registry";
+import { ActionIcon } from "../icons";
 import type { WorkflowNodeData } from "../types";
 
 type ActionNodeProps = NodeProps & { data?: WorkflowNodeData };
@@ -15,18 +13,10 @@ export const ActionNode = memo(function ActionNode({
   selected,
 }: ActionNodeProps) {
   if (!data) return null;
-  const integrationType = data.config?.integrationType as string | undefined;
   const actionType = data.config?.actionType as string | undefined;
-  const def =
-    integrationType && actionType
-      ? findActionByConfig(integrationType, actionType)
-      : undefined;
-
-  const Icon = def ? ACTION_ICONS[def.iconName] : Box;
-  const title = data.label || def?.label || actionType || "Choose action";
-  const description = data.description || def?.description || (integrationType ? `${integrationType} action` : "Click to configure");
-  const isUnconfigured = !def;
-  const isPaper = integrationType === "zlabs-polymarket";
+  const title = data.label || actionType || "Choose action";
+  const description = data.description || (actionType ? `KeeperHub · ${actionType}` : "Click to configure");
+  const isUnconfigured = !actionType;
 
   return (
     <div
@@ -51,11 +41,11 @@ export const ActionNode = memo(function ActionNode({
             : "border border-white/10 bg-gradient-to-br from-[rgba(146,119,245,0.35)] to-[rgba(224,97,159,0.25)] text-white",
         )}
       >
-        <Icon className="h-5 w-5" strokeWidth={1.75} />
+        <ActionIcon actionType={actionType} className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="c-mono text-[10px] uppercase tracking-wider text-[var(--c-pink)]">
-          {isPaper ? "Paper demo" : def?.category ?? integrationType ?? "Action"}
+          {actionType ?? "Action"}
         </div>
         <div className="truncate text-sm font-semibold text-white">
           {title}

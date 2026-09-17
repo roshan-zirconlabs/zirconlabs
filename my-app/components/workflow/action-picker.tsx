@@ -2,19 +2,16 @@
 
 import { Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { cn } from "@/lib/cn";
-import { ACTION_ICONS } from "./icons";
-import { ACTIONS, type ActionDef } from "./registry";
+import { ActionIcon } from "./icons";
+import type { ActionDef } from "./registry";
 import { useHostedCatalog } from "./hosted-catalog";
 
-type Category = "all" | "keeperhub" | "polymarket" | "logic" | "io";
+type Category = "all" | ActionDef["category"];
 
 const CATEGORIES: { id: Category; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "keeperhub", label: "KeeperHub" },
-  { id: "polymarket", label: "Polymarket" },
   { id: "logic", label: "Logic" },
-  { id: "io", label: "I/O" },
+  { id: "io", label: "Integrations" },
 ];
 
 export default function ActionPicker({
@@ -29,22 +26,9 @@ export default function ActionPicker({
   const catalog = useHostedCatalog();
   const [category, setCategory] = useState<Category>("all");
 
-  const actions = useMemo(() => {
-    const hosted = catalog.data ?? [];
-    const seen = new Set<string>();
-    return [...hosted, ...ACTIONS.map((a) => ({ ...a, source: a.source ?? "zircon", availability: a.availability ?? "paper" } as ActionDef))].filter((action) => {
-      if (seen.has(action.id)) return false;
-      seen.add(action.id);
-      return true;
-    });
-  }, [catalog.data]);
-
   const filtered = useMemo(() => {
-    return actions.filter((a) => {
-      if (category === "keeperhub" && a.source !== "keeperhub") return false;
-      if (category === "polymarket" && a.category !== "polymarket") return false;
-      if (category === "logic" && a.integrationType !== "system" && !a.id.startsWith("code/")) return false;
-      if (category === "io" && (a.category !== "io" || a.source !== "keeperhub")) return false;
+    return (catalog.data ?? []).filter((a) => {
+      if (category !== "all" && a.category !== category) return false;
       if (!query.trim()) return true;
       const q = query.toLowerCase();
       return (
@@ -53,7 +37,7 @@ export default function ActionPicker({
         a.id.toLowerCase().includes(q)
       );
     });
-  }, [query, category, actions]);
+  }, [query, category, catalog.data]);
 
   return (
     <div
@@ -98,17 +82,15 @@ export default function ActionPicker({
         </div>
 
         <div className="flex-1 overflow-y-auto p-2">
-          {catalog.isLoading && <p role="status" className="p-4 text-sm text-[var(--c-dim)]">Loading hosted actions…</p>}
-          {catalog.error && <div role="alert" className="p-4 text-sm text-rose-700">KeeperHub actions are temporarily unavailable; paper actions remain available. <button onClick={() => catalog.refetch()} className="underline">Retry</button></div>}
-          
-          {filtered.length === 0 ? (
+          {catalog.isLoading && <p role="status" className="p-4 text-sm text-[var(--c-dim)]">Loading KeeperHub actions…</p>}
+          {catalog.error && <div role="alert" className="p-4 text-sm text-rose-700">KeeperHub actions are temporarily unavailable. <button onClick={() => catalog.refetch()} className="underline">Retry</button></div>}
+          {catalog.isLoading || catalog.error ? null : filtered.length === 0 ? (
             <div className="py-10 text-center text-sm text-[var(--c-faint)]">
               No actions match your search.
             </div>
           ) : (
             <div className="flex flex-col gap-1">
               {filtered.map((a) => {
-                const Icon = ACTION_ICONS[a.iconName];
                 return (
                   <button
                     key={a.id}
@@ -116,7 +98,7 @@ export default function ActionPicker({
                     className="flex items-start gap-3 rounded-2xl p-3 text-left transition-colors hover:bg-white/5"
                   >
                     <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-gradient-to-br from-[rgba(146,119,245,0.3)] to-[rgba(224,97,159,0.2)] text-white">
-                      <Icon className="h-4 w-4" strokeWidth={1.75} />
+                      <ActionIcon actionType={a.actionType} className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="c-mono text-[10px] uppercase tracking-wider text-[var(--c-faint)]">
@@ -129,12 +111,6 @@ export default function ActionPicker({
                         {a.description}
                       </div>
                     </div>
-                    <span className={cn(
-                      "c-chip shrink-0 !text-[10px]",
-                      a.availability === "paper" && "border-amber-300/40 bg-amber-50 text-amber-700",
-                    )}>
-                      {a.availability === "paper" ? "Paper demo" : a.source === "keeperhub" ? "KeeperHub" : a.category}
-                    </span>
                   </button>
                 );
               })}
