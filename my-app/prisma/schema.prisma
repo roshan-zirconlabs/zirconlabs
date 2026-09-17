@@ -154,6 +154,8 @@ model Bot {
   updatedAt           DateTime  @updatedAt
   /// Set when the owner publishes this strategy to the public track-record feed.
   listedAt            DateTime?
+  /// Hash of the KeeperHub-executed transaction that anchors this publication on-chain.
+  attestationTx       String?
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   trades Trade[]

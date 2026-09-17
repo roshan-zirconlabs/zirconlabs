@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { KeeperhubClient } from "@/lib/keeperhub";
 import { platformKeeperhubKey } from "@/lib/keeperhub-connection";
 import { computeTrackRecord, type TrackRecord } from "@/lib/track-record";
+import { attestPublication } from "@/lib/attestation";
 
 const headers = { "Cache-Control": "private, no-store" };
 
@@ -26,7 +27,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ bot
   } catch {
     /* record stays null; the card renders an unavailable state */
   }
-  return NextResponse.json({ listed: bot.listedAt !== null, listedAt: bot.listedAt, workflowId: bot.keeperhubWorkflowId, record }, { headers });
+  return NextResponse.json(
+    { listed: bot.listedAt !== null, listedAt: bot.listedAt, workflowId: bot.keeperhubWorkflowId, attestationTx: bot.attestationTx, record },
+    { headers },
+  );
 }
 
 // Publishing is gated on a verifiable record, not a self-declared one: a
@@ -51,6 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bot
     return NextResponse.json({ error: "A strategy needs at least one resolved trade before it can be listed.", record }, { status: 422 });
   }
 
-  await prisma.bot.update({ where: { id: bot.id }, data: { listedAt: new Date() } });
-  return NextResponse.json({ listed: true, record }, { headers });
+  const attestation = bot.attestationTx ? { txHash: bot.attestationTx, link: `https://sepolia.etherscan.io/tx/${bot.attestationTx}`, chainId: 11155111 } : await attestPublication(bot.id);
+  await prisma.bot.update({ where: { id: bot.id }, data: { listedAt: new Date(), attestationTx: attestation?.txHash ?? bot.attestationTx } });
+  return NextResponse.json({ listed: true, record, attestation }, { headers });
 }

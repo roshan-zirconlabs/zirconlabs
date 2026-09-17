@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { KeeperhubClient } from "@/lib/keeperhub";
 import { platformKeeperhubKey } from "@/lib/keeperhub-connection";
-import { computeTrackRecord } from "@/lib/track-record";
+import { computeTrackRecord, toPublicRecord } from "@/lib/track-record";
 
 const headers = { "Cache-Control": "public, max-age=60" };
 
@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ wor
   const { workflowId } = await params;
   const bot = await prisma.bot.findFirst({
     where: { keeperhubWorkflowId: workflowId, listedAt: { not: null } },
-    select: { name: true, listedAt: true },
+    select: { name: true, listedAt: true, attestationTx: true },
   });
   if (!bot) return NextResponse.json({ error: "No listed strategy for this workflow." }, { status: 404 });
 
@@ -22,8 +22,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ wor
 
   try {
     const raw = (await new KeeperhubClient(key).getExecutions(workflowId)) as unknown as Record<string, unknown>[];
-    const record = await computeTrackRecord(raw);
-    return NextResponse.json({ workflowId, name: bot.name, listedAt: bot.listedAt, ...record }, { headers });
+    const record = toPublicRecord(await computeTrackRecord(raw));
+    return NextResponse.json({ workflowId, name: bot.name, listedAt: bot.listedAt, attestationTx: bot.attestationTx, ...record }, { headers });
   } catch {
     return NextResponse.json({ error: "Track record is unavailable right now." }, { status: 502 });
   }

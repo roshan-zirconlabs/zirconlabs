@@ -23,6 +23,10 @@ export type VerifiedTrade = {
 };
 
 export type TrackRecord = {
+  runs: number;
+  okRuns: number;
+  failedRuns: number;
+  lastRunAt: string | null;
   trades: number;
   resolved: number;
   wins: number;
@@ -35,6 +39,13 @@ export type TrackRecord = {
   lastTradeAt: string | null;
   proof: VerifiedTrade[];
 };
+
+// The public view of a record: aggregate stats stay, but unsettled calls are
+// dropped from the proof. Settled markets prove the edge without being
+// copyable; the live signal an open position reveals is the paid product.
+export function toPublicRecord(record: TrackRecord): TrackRecord {
+  return { ...record, proof: record.proof.filter((t) => t.outcome !== "OPEN") };
+}
 
 async function resolveMarkets(slugs: string[]): Promise<Map<string, MarketResolution>> {
   const out = new Map<string, MarketResolution>();
@@ -92,7 +103,13 @@ function tradedFromExecution(e: Record<string, unknown>): Traded | null {
   };
 }
 
+function runAt(e: Record<string, unknown>): string | null {
+  return typeof e.startedAt === "string" ? e.startedAt : null;
+}
+
 export async function computeTrackRecord(executions: Record<string, unknown>[]): Promise<TrackRecord> {
+  const failedRuns = executions.filter((e) => typeof e.error === "string" && e.error).length;
+  const runTimes = executions.map(runAt).filter((x): x is string => Boolean(x)).sort();
   const traded = executions.map(tradedFromExecution).filter((t): t is Traded => t !== null);
   const resolutions = await resolveMarkets(traded.map((t) => t.marketSlug));
 
@@ -136,6 +153,10 @@ export async function computeTrackRecord(executions: Record<string, unknown>[]):
   const times = traded.map((t) => t.at).filter((x): x is string => Boolean(x)).sort();
   const resolved = wins + losses;
   return {
+    runs: executions.length,
+    okRuns: executions.length - failedRuns,
+    failedRuns,
+    lastRunAt: runTimes.at(-1) ?? null,
     trades: traded.length,
     resolved,
     wins,

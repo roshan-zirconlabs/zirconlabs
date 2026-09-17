@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TrackRecord } from "@/lib/track-record";
 import TrackRecordView from "@/components/strategies/track-record-view";
 
-type Listing = { listed: boolean; listedAt: string | null; workflowId: string | null; record: TrackRecord | null };
+type Listing = { listed: boolean; listedAt: string | null; workflowId: string | null; attestationTx: string | null; record: TrackRecord | null };
 
 export default function TrackRecordCard({ botId }: { botId: string }) {
   const client = useQueryClient();
@@ -46,7 +46,12 @@ export default function TrackRecordCard({ botId }: { botId: string }) {
           </p>
         </div>
         {data.listed ? (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {data.attestationTx && (
+              <a href={`https://sepolia.etherscan.io/tx/${data.attestationTx}`} target="_blank" rel="noreferrer" className="c-btn-ghost c-btn-sm !text-[var(--c-up)]">
+                On-chain proof ↗
+              </a>
+            )}
             <Link href={`/strategies/${data.workflowId}`} className="c-btn-ghost c-btn-sm">
               Public page ↗
             </Link>
