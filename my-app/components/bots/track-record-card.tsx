@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TrackRecord } from "@/lib/track-record";
 import TrackRecordView from "@/components/strategies/track-record-view";
 
-type Listing = { listed: boolean; listedAt: string | null; workflowId: string | null; attestationTx: string | null; record: TrackRecord | null };
+type Listing = { listed: boolean; listedAt: string | null; workflowId: string | null; attestationTx: string | null; priceUsdc: number | null; record: TrackRecord | null };
 
 export default function TrackRecordCard({ botId }: { botId: string }) {
   const client = useQueryClient();
+  const [priceEdit, setPriceEdit] = useState<string | null>(null);
   const { data } = useQuery({
     queryKey: ["listing", botId],
     queryFn: async (): Promise<Listing> => {
@@ -18,12 +20,14 @@ export default function TrackRecordCard({ botId }: { botId: string }) {
     },
   });
 
+  const price = priceEdit ?? (data?.priceUsdc ? String(data.priceUsdc) : "0.05");
+
   const mutate = useMutation({
     mutationFn: async (list: boolean) => {
       const res = await fetch(`/api/bots/${botId}/listing`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ list }),
+        body: JSON.stringify({ list, priceUsdc: Number(price) }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not update listing");
@@ -35,6 +39,22 @@ export default function TrackRecordCard({ botId }: { botId: string }) {
   if (!data) return null;
   const { record } = data;
   const canList = (record?.resolved ?? 0) >= 1;
+  const priceField = (
+    <label className="flex items-center gap-1.5 rounded-full border border-white/12 px-3 py-1.5 text-xs text-[var(--c-dim)]">
+      <span>$</span>
+      <input
+        type="number"
+        min={0.01}
+        max={100}
+        step={0.01}
+        value={price}
+        onChange={(e) => setPriceEdit(e.target.value)}
+        aria-label="Rent price per call in USDC"
+        className="w-14 bg-transparent text-white outline-none"
+      />
+      <span>/ call</span>
+    </label>
+  );
 
   return (
     <section className="c-panel mt-6 p-6">
@@ -47,6 +67,10 @@ export default function TrackRecordCard({ botId }: { botId: string }) {
         </div>
         {data.listed ? (
           <div className="flex flex-wrap items-center gap-2">
+            {priceField}
+            <button type="button" onClick={() => mutate.mutate(true)} disabled={mutate.isPending || Number(price) === data.priceUsdc} className="c-btn-ghost c-btn-sm">
+              Save price
+            </button>
             {data.attestationTx && (
               <a href={`https://sepolia.etherscan.io/tx/${data.attestationTx}`} target="_blank" rel="noreferrer" className="c-btn-ghost c-btn-sm !text-[var(--c-up)]">
                 On-chain proof ↗
@@ -60,15 +84,18 @@ export default function TrackRecordCard({ botId }: { botId: string }) {
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => mutate.mutate(true)}
-            disabled={!canList || mutate.isPending}
-            title={canList ? undefined : "Needs at least one resolved trade"}
-            className="c-btn-primary c-btn-sm"
-          >
-            {mutate.isPending ? "Publishing…" : "Publish to feed"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {priceField}
+            <button
+              type="button"
+              onClick={() => mutate.mutate(true)}
+              disabled={!canList || mutate.isPending}
+              title={canList ? undefined : "Needs at least one resolved trade"}
+              className="c-btn-primary c-btn-sm"
+            >
+              {mutate.isPending ? "Publishing…" : "Publish to feed"}
+            </button>
+          </div>
         )}
       </div>
 

@@ -28,9 +28,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ bot
     /* record stays null; the card renders an unavailable state */
   }
   return NextResponse.json(
-    { listed: bot.listedAt !== null, listedAt: bot.listedAt, workflowId: bot.keeperhubWorkflowId, attestationTx: bot.attestationTx, record },
+    { listed: bot.listedAt !== null, listedAt: bot.listedAt, workflowId: bot.keeperhubWorkflowId, attestationTx: bot.attestationTx, priceUsdc: bot.priceUsdc, record },
     { headers },
   );
+}
+
+function parsePrice(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.min(100, Math.max(0.01, Number(n.toFixed(2)))) : undefined;
 }
 
 // Publishing is gated on a verifiable record, not a self-declared one: a
@@ -40,7 +45,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bot
   const session = await auth();
   if (!session?.user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const list = (await req.json().catch(() => null))?.list !== false;
+  const body = (await req.json().catch(() => null)) ?? {};
+  const list = body.list !== false;
+  const priceUsdc = parsePrice(body.priceUsdc);
   const bot = await prisma.bot.findFirst({ where: { id: (await params).botId, userId: session.user.id } });
   if (!bot) return NextResponse.json({ error: "Bot not found" }, { status: 404 });
 
@@ -56,6 +63,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bot
   }
 
   const attestation = bot.attestationTx ? { txHash: bot.attestationTx, link: `https://sepolia.etherscan.io/tx/${bot.attestationTx}`, chainId: 11155111 } : await attestPublication(bot.id).catch(() => null);
-  await prisma.bot.update({ where: { id: bot.id }, data: { listedAt: new Date(), attestationTx: attestation?.txHash ?? bot.attestationTx } });
-  return NextResponse.json({ listed: true, record, attestation }, { headers });
+  await prisma.bot.update({
+    where: { id: bot.id },
+    data: { listedAt: bot.listedAt ?? new Date(), attestationTx: attestation?.txHash ?? bot.attestationTx, priceUsdc: priceUsdc ?? bot.priceUsdc },
+  });
+  return NextResponse.json({ listed: true, record, attestation, priceUsdc: priceUsdc ?? bot.priceUsdc }, { headers });
 }

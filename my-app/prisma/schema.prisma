@@ -156,6 +156,8 @@ model Bot {
   listedAt            DateTime?
   /// Hash of the KeeperHub-executed transaction that anchors this publication on-chain.
   attestationTx       String?
+  /// USDC an agent pays per call to rent this strategy, settled via KeeperHub's x402 marketplace.
+  priceUsdc           Float?
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   trades Trade[]

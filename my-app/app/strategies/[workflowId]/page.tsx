@@ -6,6 +6,7 @@ import { platformKeeperhubKey } from "@/lib/keeperhub-connection";
 import { computeTrackRecord, toPublicRecord, type TrackRecord } from "@/lib/track-record";
 import { PageShell } from "@/components/ui/page";
 import TrackRecordView from "@/components/strategies/track-record-view";
+import RentPanel from "@/components/strategies/rent-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export default async function StrategyPage({ params }: { params: Promise<{ workf
   const { workflowId } = await params;
   const bot = await prisma.bot.findFirst({
     where: { keeperhubWorkflowId: workflowId, listedAt: { not: null } },
-    select: { name: true, listedAt: true, attestationTx: true },
+    select: { name: true, listedAt: true, attestationTx: true, priceUsdc: true },
   });
   if (!bot) notFound();
 
@@ -55,12 +56,13 @@ export default async function StrategyPage({ params }: { params: Promise<{ workf
         <p className="c-panel p-6 text-[var(--c-faint)]">This strategy&rsquo;s record is unavailable right now.</p>
       )}
 
+      <RentPanel workflowId={workflowId} priceUsdc={bot.priceUsdc} />
+
       <section className="c-panel mt-6 p-6">
-        <h2 className="font-semibold">For agents</h2>
+        <h2 className="font-semibold">Verify before you pay</h2>
         <p className="mt-1 text-sm text-[var(--c-dim)]">
-          Query this record before you subscribe — settled trades come with proof (KeeperHub execution ids and on-chain
-          condition ids) you can verify yourself, no trust required. Open positions are withheld: the live signal is
-          what a subscription buys.
+          Settled trades come with proof (KeeperHub execution ids and on-chain condition ids) anyone can recompute — no
+          trust required. Open positions are withheld: the live signal is what renting buys.
         </p>
         <code className="c-mono mt-4 block overflow-x-auto rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-[var(--c-pink)]">
           GET /api/strategies/{workflowId}/track-record
