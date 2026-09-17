@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bot
     return NextResponse.json({ error: "A strategy needs at least one resolved trade before it can be listed.", record }, { status: 422 });
   }
 
-  const attestation = bot.attestationTx ? { txHash: bot.attestationTx, link: `https://sepolia.etherscan.io/tx/${bot.attestationTx}`, chainId: 11155111 } : await attestPublication(bot.id);
+  const attestation = bot.attestationTx ? { txHash: bot.attestationTx, link: `https://sepolia.etherscan.io/tx/${bot.attestationTx}`, chainId: 11155111 } : await attestPublication(bot.id).catch(() => null);
   await prisma.bot.update({ where: { id: bot.id }, data: { listedAt: new Date(), attestationTx: attestation?.txHash ?? bot.attestationTx } });
   return NextResponse.json({ listed: true, record, attestation }, { headers });
 }
