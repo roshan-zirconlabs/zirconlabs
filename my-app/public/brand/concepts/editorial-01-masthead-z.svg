@@ -1,8 +1,0 @@
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <title>Zircon Labs — Editorial Masthead Z</title>
-  <rect width="512" height="512" fill="#F4F0E6"/>
-  <path d="M106 111H404V160L190 351H407V402H101V352L318 162H106V111Z" fill="#141414"/>
-  <path d="M236 260L319 162H404V207L282 351H190L236 260Z" fill="#2855FF"/>
-  <circle cx="407" cy="351" r="20" fill="#FF4D2E"/>
-  <path d="M106 441H406" stroke="#141414" stroke-width="8"/>
-</svg>

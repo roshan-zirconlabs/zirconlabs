@@ -1,9 +1,0 @@
-<svg width="960" height="320" viewBox="0 0 960 320" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <title>Zircon Labs — Editorial Wordmark</title>
-  <rect width="960" height="320" fill="#F4F0E6"/>
-  <text x="70" y="151" fill="#141414" font-family="Georgia, Times New Roman, serif" font-size="118" font-weight="700" letter-spacing="-8">Zircon</text>
-  <rect x="73" y="188" width="570" height="13" fill="#2855FF"/>
-  <text x="74" y="250" fill="#141414" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="12">LABS</text>
-  <circle cx="792" cy="118" r="32" fill="#FF4D2E"/>
-  <path d="M773 102H812L775 137H813" stroke="#F4F0E6" stroke-width="9" stroke-linecap="square" stroke-linejoin="miter"/>
-</svg>
