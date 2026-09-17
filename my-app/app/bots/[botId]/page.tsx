@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Check, Copy, ExternalLink, ListChecks, SlidersHorizontal, Trash2, Webhook } from "lucide-react";
 import ExecutionAuditTrail from "@/components/bots/execution-audit-trail";
+import TrackRecordCard from "@/components/bots/track-record-card";
 import ActivationControl from "@/components/bots/activation-control";
 import BotAvatar from "@/components/bots/bot-avatar";
 import { BotStatusBadge, PageShell, StatusBadge } from "@/components/ui/page";
@@ -154,6 +155,8 @@ export default function BotDetailPage({ params }: { params: Promise<{ botId: str
           </div>
         </section>
       )}
+
+      <TrackRecordCard botId={botId} />
 
       <ExecutionAuditTrail botId={botId} />
     </PageShell>

@@ -10,6 +10,7 @@ import { OrbitMark } from "@/components/brand/OrbitMark";
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/bots", label: "Bots" },
+  { href: "/strategies", label: "Strategies" },
   { href: "/markets", label: "Markets" },
   { href: "/trade", label: "Trade" },
   { href: "/backtest", label: "Backtest" },
