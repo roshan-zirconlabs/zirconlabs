@@ -47,7 +47,7 @@ export const strategySpec = z.object({
    * Refuse to buy above this price per share. Up/down markets move toward 0 or
    * 1 as the window closes, so a low cap silently skips most runs.
    */
-  maxPrice: z.number().finite().gt(0).lt(1).default(0.95),
+  maxPrice: z.number().finite().gt(0).lt(1).default(0.55),
   /** Paper records a simulated fill; live submits a real signed CLOB order. */
   mode: z.enum(["paper", "live"]).default("paper"),
 }).refine(s => s.source === "webhook" || s.slowPeriod > s.fastPeriod, {

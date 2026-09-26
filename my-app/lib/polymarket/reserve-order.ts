@@ -16,8 +16,12 @@ export async function reserveOrderInTransaction(tx: Prisma.TransactionClient, us
     const account = await tx.polymarketManagedAccount.findUnique({ where: { userId } });
     if (!account || account.status !== "ACTIVE" || !account.liveEnabled) throw new MarketError("Enable your funded trading account before buying.", 409);
     const start = new Date(); start.setUTCHours(0, 0, 0, 0);
+    // Uncertain orders keep counting against the budget across midnight, but
+    // only for 24 hours: without a bound, a few network errors would block the
+    // account forever with nothing the user could do about it.
+    const uncertainSince = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const totals = await tx.polymarketOrderAttempt.aggregate({
-      where: { userId, status: { not: "REJECTED" }, OR: [{ createdAt: { gte: start } }, { status: { in: ["SUBMITTING", "UNKNOWN"] } }] },
+      where: { userId, status: { not: "REJECTED" }, OR: [{ createdAt: { gte: start } }, { status: { in: ["SUBMITTING", "UNKNOWN"] }, createdAt: { gte: uncertainSince } }] },
       _sum: { amountUsd: true },
     });
     assertBudget(account.dailyLimitUsd, Number(totals._sum.amountUsd ?? 0), input.amountUsd);

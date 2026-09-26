@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { OrderSide, OrderType } from "@polymarket/client";
+import { OrderSide, OrderType, type SecureClient } from "@polymarket/client";
 import { prisma } from "@/lib/prisma";
 import { bearerBotId } from "@/lib/workflow/bot-token";
 import { strategySpec, evaluateRule, directionFromAlert } from "@/lib/workflow/strategy";
 import crypto from "crypto";
 import { TIMEFRAME_DURATION } from "@/lib/market-data";
 import { resolveActiveMarket } from "@/lib/workflow/active-market";
-import { fetchCandles, CandleError } from "@/lib/workflow/candles";
+import { fetchFreshCandles, CandleError } from "@/lib/workflow/candles";
 import { MarketError } from "@/lib/polymarket-markets";
-import { simulateBuy } from "@/lib/paper-fill";
+import { CRYPTO_TAKER_FEE_RATE, simulateBuy } from "@/lib/paper-fill";
 import { liveExecutionConfigured } from "@/lib/polymarket/managed-account";
 import { createManagedPolymarketClient } from "@/lib/polymarket/live-client";
 import { readAccountReadiness } from "@/lib/polymarket/account-readiness";
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
       if (resolved.slug !== input.marketSlug) {
         return NextResponse.json({ error: "The market rotated between the signal and the order. Nothing was executed." }, { status: 409, headers });
       }
-      const candles = await fetchCandles(spec.data, Math.max(spec.data.slowPeriod + 2, 50));
+      const candles = await fetchFreshCandles(spec.data, Math.max(spec.data.slowPeriod + 2, 50), nowSec);
       const decision = evaluateRule(spec.data, candles);
       if (decision.direction !== input.direction) {
         return NextResponse.json({ error: "The strategy no longer implies that direction. Nothing was executed.", reason: decision.reason }, { status: 409, headers });
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
 
     if (spec.data.mode === "paper") {
       let fill;
-      try { fill = simulateBuy(book.asks, spec.data.stakeUsd, spec.data.maxPrice); }
+      try { fill = simulateBuy(book.asks, spec.data.stakeUsd, spec.data.maxPrice, CRYPTO_TAKER_FEE_RATE); }
       catch { return NextResponse.json({ error: `No shares are offered at or below ${spec.data.maxPrice} right now. Nothing was recorded.` }, { status: 409, headers }); }
       // A paper fill that Polymarket would have rejected is not a useful record.
       if (fill.shares + 1e-8 < book.min_order_size) {
@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ok: true, paper: true, tradeId: trade.id, marketSlug: resolved.slug, direction,
         ...fill, reason,
-        message: "Quote-time paper fill. Excludes fees, queue position and settlement. No real order was placed.",
+        message: "Quote-time paper fill, net of Polymarket's taker fee. Excludes queue position and settlement. No real order was placed.",
       }, { headers });
     }
 
@@ -185,29 +185,54 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, duplicate: true, status: reserved.attempt.status, message: "This window is already being executed." }, { status: 202, headers });
     }
 
-    const client = await createManagedPolymarketClient(account.providerWalletId);
-    const response = await client.placeMarketOrder({
-      assetId: outcome.assetId, amount: spec.data.stakeUsd, maxPrice: spec.data.maxPrice,
-      side: OrderSide.BUY, orderType: OrderType.FOK,
-    });
+    let response: Awaited<ReturnType<SecureClient["placeMarketOrder"]>>;
+    try {
+      const client = await createManagedPolymarketClient(account.providerWalletId);
+      response = await client.placeMarketOrder({
+        assetId: outcome.assetId, amount: spec.data.stakeUsd, maxPrice: spec.data.maxPrice,
+        side: OrderSide.BUY, orderType: OrderType.FOK,
+      });
+    } catch (error) {
+      // The order may or may not have reached Polymarket: record that honestly
+      // instead of leaving the reservation in SUBMITTING, and never retry.
+      await prisma.polymarketOrderAttempt.update({ where: { id: reserved.attempt.id }, data: { status: "UNKNOWN", receipt: { ok: false, error: error instanceof Error ? error.message.slice(0, 240) : "unknown" } } }).catch(() => {});
+      throw error;
+    }
     if (!response.ok) {
       await prisma.polymarketOrderAttempt.update({ where: { id: reserved.attempt.id }, data: { status: "REJECTED", receipt: { ok: false, code: response.code } } });
       return NextResponse.json({ error: "Polymarket rejected the order.", code: response.code }, { status: 409, headers });
     }
 
+    // A buy spends collateral (making) for shares (taking). Record what actually
+    // filled — not the stake and price cap — so P&L and the track record are real.
+    const spent = Number(response.makingAmount);
+    const shares = Number(response.takingAmount);
+    const filled = response.status === "matched" && spent > 0 && shares > 0;
+    // "delayed" means the market queues matching: it may still fill, so it is
+    // recorded as pending rather than as a trade that did not happen.
+    const queued = response.status === "delayed";
     const trade = await prisma.trade.create({ data: {
       userId: bot.userId, botId: bot.id, signal: "BUY", side: "BUY", direction,
-      marketSlug: resolved.slug, tokenId: outcome.assetId, amount: spec.data.stakeUsd, price: spec.data.maxPrice,
-      status: "PENDING", orderId: response.orderId, executedAt: new Date(), paper: false,
+      marketSlug: resolved.slug, tokenId: outcome.assetId,
+      amount: filled ? spent : queued ? spec.data.stakeUsd : 0,
+      shares: filled ? shares : queued ? null : 0,
+      price: filled ? spent / shares : queued ? spec.data.maxPrice : 0,
+      status: filled ? "FILLED" : queued ? "PENDING" : "CANCELLED", orderId: response.orderId, executedAt: new Date(), paper: false,
       keeperhubExecutionId: requestId,
     } });
     await prisma.polymarketOrderAttempt.update({
       where: { id: reserved.attempt.id },
-      data: { status: "ACCEPTED", orderId: response.orderId, receipt: { ok: true, orderId: response.orderId, status: response.status, tradeIds: response.tradeIds } },
+      data: { status: filled || queued ? "ACCEPTED" : "REJECTED", orderId: response.orderId, receipt: { ok: true, orderId: response.orderId, status: response.status, tradeIds: response.tradeIds, transactionsHashes: response.transactionsHashes } },
     });
+    if (queued) {
+      return NextResponse.json({ ok: true, paper: false, queued: true, tradeId: trade.id, orderId: response.orderId, status: response.status, message: "Polymarket queued this order; it may still fill." }, { status: 202, headers });
+    }
+    if (!filled) {
+      return NextResponse.json({ error: "The order was not filled at or below your price limit. Nothing was bought.", status: response.status }, { status: 409, headers });
+    }
     return NextResponse.json({
       ok: true, paper: false, tradeId: trade.id, orderId: response.orderId, status: response.status,
-      marketSlug: resolved.slug, direction, reason,
+      marketSlug: resolved.slug, direction, reason, amount: spent, shares, price: spent / shares,
     }, { headers });
   } catch (error) {
     const status = error instanceof MarketError ? error.status : error instanceof CandleError ? 503 : 502;

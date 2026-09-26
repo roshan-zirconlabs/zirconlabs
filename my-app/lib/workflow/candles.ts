@@ -162,13 +162,43 @@ export async function fetchCandles(
   limit: number,
   fetcher: typeof fetch = fetch,
   providers: Provider[] = PROVIDERS,
+  /** Reject a source whose newest closed candle opened before this time. */
+  minLastTs = 0,
 ): Promise<Candle[]> {
   const want = Math.min(Math.max(Math.floor(limit), 2) + 1, 1000);
   const tried: string[] = [];
   for (const provider of providers) {
     tried.push(provider.name);
     const candles = await provider.fetch(spec.asset, spec.timeframe, want, fetcher);
-    if (candles && candles.length >= 2) return candles;
+    if (candles && candles.length >= 2 && candles[candles.length - 1].ts >= minLastTs) return candles;
   }
   throw new CandleError(`Price history is unavailable from every source (tried ${tried.join(", ")}). No signal was produced.`);
+}
+
+/**
+ * Candles that include the window that just closed.
+ *
+ * A bot fires right on the window boundary, when exchanges may not have
+ * published the candle that just ended. Reading one step older would decide on
+ * stale data, so this waits briefly for it and fails closed rather than guess.
+ */
+export async function fetchFreshCandles(
+  spec: Pick<StrategySpec, "asset" | "timeframe">,
+  limit: number,
+  nowSec: number = Math.floor(Date.now() / 1000),
+  { fetcher = fetch, providers = PROVIDERS, attempts = 4, delayMs = 2000 }: { fetcher?: typeof fetch; providers?: Provider[]; attempts?: number; delayMs?: number } = {},
+): Promise<Candle[]> {
+  const step = TIMEFRAME_SECONDS[spec.timeframe];
+  const justClosed = Math.floor(nowSec / step) * step - step;
+  for (let i = 1; ; i++) {
+    try {
+      return await fetchCandles(spec, limit, fetcher, providers, justClosed);
+    } catch (error) {
+      if (i >= attempts) {
+        throw new CandleError("The candle for the window that just closed is not published yet, so the rule was not evaluated on stale data. No trade this window.");
+      }
+      if (!(error instanceof CandleError)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
 }

@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import type { TrackRecord } from "@/lib/track-record";
-import { rentPrice } from "@/components/strategies/rent-panel";
 
 const money = (n: number) => `${n >= 0 ? "+" : ""}$${n.toFixed(2)}`;
 
-export default function StrategyFeedItem({ name, workflowId, priceUsdc }: { name: string; workflowId: string; priceUsdc: number | null }) {
+export default function StrategyFeedItem({ name, workflowId }: { name: string; workflowId: string }) {
   const { data } = useQuery({
     queryKey: ["public-record", workflowId],
     queryFn: async (): Promise<TrackRecord> => {
@@ -18,13 +17,16 @@ export default function StrategyFeedItem({ name, workflowId, priceUsdc }: { name
   });
 
   const pnl = data?.realizedPnlUsd ?? 0;
+  const simulated = data?.basis !== "live";
   return (
     <Link href={`/strategies/${workflowId}`} className="c-panel c-panel-hover block p-5">
       <div className="flex items-start justify-between gap-3">
         <h3 className="font-semibold text-white">{name}</h3>
-        <span className="c-chip shrink-0 border-[rgba(247,168,207,0.35)] !text-[11px] text-[var(--c-pink)]">
-          ${rentPrice(priceUsdc).toFixed(2)} / call
-        </span>
+        {data && (
+          <span className={`c-chip shrink-0 !text-[11px] ${simulated ? "border-amber-300/40 bg-amber-50 text-amber-700" : "border-emerald-300/40 bg-emerald-50 text-emerald-700"}`}>
+            {simulated ? "Simulated" : "Real money"}
+          </span>
+        )}
       </div>
       <p className="c-mono mt-1 truncate text-xs text-[var(--c-faint)]">{workflowId}</p>
       <div className="mt-4 flex gap-8">

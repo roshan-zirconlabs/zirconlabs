@@ -49,7 +49,7 @@ export function strategyFromCanvas(nodes: MinimalNode[]): StrategySpec | null {
     timeframe: (sc.timeframe ?? oc.timeframe) as string,
     rule: (sc.rule ?? oc.rule) as string,
     stakeUsd: num(oc.stakeUsd, 10),
-    maxPrice: num(oc.maxPrice, 0.95),
+    maxPrice: num(oc.maxPrice, 0.55),
     mode: (oc.mode === "live" ? "live" : "paper") as StrategySpec["mode"],
   };
 

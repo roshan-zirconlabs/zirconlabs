@@ -82,7 +82,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ bot
         const won = res.winner === t.direction;
         outcome = won ? "WON" : "LOST";
         pnlUsd = won ? Number((t.shares - t.amount).toFixed(4)) : Number((-t.amount).toFixed(4));
-        if (won) { wins++; realizedPnl += pnlUsd; redeemable = !t.paper; } else losses++;
+        realizedPnl += pnlUsd;
+        if (won) { wins++; redeemable = !t.paper; } else losses++;
       } else { outcome = "OPEN"; open++; }
     }
     return {

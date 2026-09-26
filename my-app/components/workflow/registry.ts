@@ -183,7 +183,7 @@ export const ACTIONS: ActionDef[] = [
         key: "maxPrice",
         label: "Max price per share",
         kind: "number",
-        defaultValue: 0.95,
+        defaultValue: 0.55,
         description: "Skip the run rather than buy above this price (0–1).",
       },
       {

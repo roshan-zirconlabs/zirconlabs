@@ -1,5 +1,3 @@
-import "server-only";
-
 // A strategy's track record, recomputable by anyone from two public sources:
 // KeeperHub's execution records (the trades it took) and Polymarket's on-chain
 // resolution (whether each was right). Nothing here reads Zircon's own database,
@@ -20,6 +18,8 @@ export type VerifiedTrade = {
   conditionId: string | null;
   outcome: "WON" | "LOST" | "OPEN";
   pnlUsd: number | null;
+  /** True for a simulated (paper) fill, false for a real order on Polymarket. */
+  paper: boolean;
 };
 
 export type TrackRecord = {
@@ -37,6 +37,14 @@ export type TrackRecord = {
   stakedUsd: number;
   firstTradeAt: string | null;
   lastTradeAt: string | null;
+  /**
+   * What the stats are computed from. A record with any real trades is scored
+   * on real trades only; otherwise it is scored on simulated fills and must be
+   * shown as simulated. The two are never blended.
+   */
+  basis: "live" | "paper";
+  liveTrades: number;
+  paperTrades: number;
   proof: VerifiedTrade[];
 };
 
@@ -79,7 +87,7 @@ async function resolveMarkets(slugs: string[]): Promise<Map<string, MarketResolu
   return out;
 }
 
-type Traded = Pick<VerifiedTrade, "executionId" | "txHash" | "marketSlug" | "direction" | "amountUsd" | "shares"> & {
+type Traded = Pick<VerifiedTrade, "executionId" | "txHash" | "marketSlug" | "direction" | "amountUsd" | "shares" | "paper"> & {
   at: string | null;
 };
 
@@ -87,7 +95,7 @@ function tradedFromExecution(e: Record<string, unknown>): Traded | null {
   if ((typeof e.error === "string" && e.error) || e.lastSuccessfulNodeName !== "Place Polymarket order") return null;
   const data = (e.output as { data?: Record<string, unknown> } | undefined)?.data;
   if (!data) return null;
-  const { marketSlug, direction, amount, shares } = data;
+  const { marketSlug, direction, amount, shares, paper } = data;
   if (typeof marketSlug !== "string" || (direction !== "UP" && direction !== "DOWN") || typeof amount !== "number" || typeof shares !== "number") {
     return null;
   }
@@ -99,6 +107,8 @@ function tradedFromExecution(e: Record<string, unknown>): Traded | null {
     direction,
     amountUsd: amount,
     shares,
+    // Only an explicit `paper: false` is a real order; older runs were all paper.
+    paper: paper !== false,
     at: typeof e.startedAt === "string" ? e.startedAt : null,
   };
 }
@@ -110,7 +120,10 @@ function runAt(e: Record<string, unknown>): string | null {
 export async function computeTrackRecord(executions: Record<string, unknown>[]): Promise<TrackRecord> {
   const failedRuns = executions.filter((e) => typeof e.error === "string" && e.error).length;
   const runTimes = executions.map(runAt).filter((x): x is string => Boolean(x)).sort();
-  const traded = executions.map(tradedFromExecution).filter((t): t is Traded => t !== null);
+  const allTraded = executions.map(tradedFromExecution).filter((t): t is Traded => t !== null);
+  const liveTrades = allTraded.filter((t) => !t.paper).length;
+  const basis: TrackRecord["basis"] = liveTrades > 0 ? "live" : "paper";
+  const traded = allTraded.filter((t) => (basis === "live" ? !t.paper : t.paper));
   const resolutions = await resolveMarkets(traded.map((t) => t.marketSlug));
 
   let wins = 0;
@@ -128,12 +141,9 @@ export async function computeTrackRecord(executions: Record<string, unknown>[]):
       const won = r.winner === t.direction;
       outcome = won ? "WON" : "LOST";
       pnlUsd = Number((won ? t.shares - t.amountUsd : -t.amountUsd).toFixed(4));
-      if (won) {
-        wins++;
-        realizedPnlUsd += pnlUsd;
-      } else {
-        losses++;
-      }
+      realizedPnlUsd += pnlUsd;
+      if (won) wins++;
+      else losses++;
     } else {
       open++;
     }
@@ -147,6 +157,7 @@ export async function computeTrackRecord(executions: Record<string, unknown>[]):
       conditionId: r?.conditionId ?? null,
       outcome,
       pnlUsd,
+      paper: t.paper,
     };
   });
 
@@ -167,6 +178,9 @@ export async function computeTrackRecord(executions: Record<string, unknown>[]):
     stakedUsd: Number(stakedUsd.toFixed(2)),
     firstTradeAt: times[0] ?? null,
     lastTradeAt: times.at(-1) ?? null,
+    basis,
+    liveTrades,
+    paperTrades: allTraded.length - liveTrades,
     proof,
   };
 }

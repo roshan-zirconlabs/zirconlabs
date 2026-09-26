@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { aggregateCandles, fetchCandles, CandleError, TIMEFRAME_SECONDS } from "./candles.ts";
+import { aggregateCandles, fetchCandles, fetchFreshCandles, CandleError, TIMEFRAME_SECONDS } from "./candles.ts";
 import type { Candle } from "./strategy.ts";
 
 const hour = 3600;
@@ -48,6 +48,20 @@ test("when every source fails the strategy gets no candles rather than bad ones"
   await assert.rejects(
     () => fetchCandles({ asset: "BTC", timeframe: "15m" }, 10, fetch, dead),
     (e: Error) => e instanceof CandleError && /tried a, b/.test(e.message),
+  );
+});
+
+test("a stale source is skipped at the window boundary instead of deciding on old data", async () => {
+  const step = TIMEFRAME_SECONDS["15m"];
+  const now = 1789488000 + 5; // five seconds into a new 15m window
+  const justClosed = Math.floor(now / step) * step - step;
+  const stale = { name: "stale", fetch: async () => [bar(justClosed - 2 * step, 1, 1, 1, 1), bar(justClosed - step, 1, 1, 1, 1)] };
+  const fresh = { name: "fresh", fetch: async () => [bar(justClosed - step, 1, 1, 1, 1), bar(justClosed, 2, 2, 2, 2)] };
+  const out = await fetchFreshCandles({ asset: "BTC", timeframe: "15m" }, 10, now, { providers: [stale, fresh], delayMs: 0 });
+  assert.equal(out.at(-1)?.ts, justClosed, "uses the source that has the candle which just closed");
+  await assert.rejects(
+    () => fetchFreshCandles({ asset: "BTC", timeframe: "15m" }, 10, now, { providers: [stale], attempts: 2, delayMs: 0 }),
+    (e: Error) => e instanceof CandleError && /not published yet/.test(e.message),
   );
 });
 

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { bearerBotId } from "@/lib/workflow/bot-token";
 import { strategySpec, evaluateRule } from "@/lib/workflow/strategy";
 import { resolveActiveMarket } from "@/lib/workflow/active-market";
-import { fetchCandles, CandleError } from "@/lib/workflow/candles";
+import { fetchFreshCandles, CandleError } from "@/lib/workflow/candles";
 import { MarketError } from "@/lib/polymarket-markets";
 import { TIMEFRAME_DURATION } from "@/lib/market-data";
 
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const nowSec = Math.floor(Date.now() / 1000);
     const [resolved, candles] = await Promise.all([
       resolveActiveMarket(spec.data, nowSec),
-      fetchCandles(spec.data, Math.max(spec.data.slowPeriod + 2, 50)),
+      fetchFreshCandles(spec.data, Math.max(spec.data.slowPeriod + 2, 50), nowSec),
     ]);
 
     const decision = evaluateRule(spec.data, candles);

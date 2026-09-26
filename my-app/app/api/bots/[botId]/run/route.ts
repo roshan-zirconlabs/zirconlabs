@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { keeperhubForUser } from "@/lib/keeperhub-connection";
 import { graphSchema } from "@/lib/workflow-validation";
-import { simulateBuy } from "@/lib/paper-fill";
+import { CRYPTO_TAKER_FEE_RATE, simulateBuy } from "@/lib/paper-fill";
 import { z } from "zod";
 import { liveExecutionConfigured } from "@/lib/polymarket/managed-account";
 import { workflowRunGuard } from "@/lib/bot-run-guard";
@@ -64,13 +64,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bot
     if (index < 0 || !/^\d+$/.test(tokenId ?? "")) throw new Error("The selected market does not have the requested binary outcome.");
     const book = await remoteJson(`https://clob.polymarket.com/book?token_id=${tokenId}`);
     const asks = z.array(z.object({ price: z.string(), size: z.string() })).parse(book.asks);
-    const fill = simulateBuy(asks, order.sizeUsd, order.maxPrice);
+    const fill = simulateBuy(asks, order.sizeUsd, order.maxPrice, CRYPTO_TAKER_FEE_RATE);
     const trade = await prisma.trade.create({ data: {
       userId: session.user.id, botId: bot.id, signal: "BUY", side: "BUY", direction: order.direction,
       marketSlug: order.marketSlug, tokenId, ...fill, status: "FILLED", executedAt: new Date(), paper: true,
     } });
     return NextResponse.json({ id: trade.id, executionId: trade.id, status: "SUCCESS", paper: true,
-      marketSlug: order.marketSlug, ...fill, startedAt: trade.executedAt, message: "Quote-time paper fill. Excludes fees, queue position and settlement. No real order was placed." });
+      marketSlug: order.marketSlug, ...fill, startedAt: trade.executedAt, message: "Quote-time paper fill, net of the taker fee. Excludes queue position and settlement. No real order was placed." });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Execution failed. No success receipt was generated." }, { status: 502 });
   }

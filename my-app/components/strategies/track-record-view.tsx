@@ -26,8 +26,19 @@ export default function TrackRecordView({ record, showProof }: { record: TrackRe
   const pnl = record.realizedPnlUsd;
   const successRate = record.runs > 0 ? Math.round((record.okRuns / record.runs) * 100) : null;
 
+  const simulated = record.basis === "paper";
+
   return (
     <div>
+      {record.trades > 0 && (
+        <p
+          className={`mb-3 rounded-xl border px-3 py-2 text-sm ${simulated ? "border-amber-300/40 bg-amber-50 text-amber-800" : "border-emerald-300/40 bg-emerald-50 text-emerald-800"}`}
+        >
+          {simulated
+            ? "Simulated results. These are practice fills priced against the real order book — no money was traded, and past performance is not a promise of future results."
+            : `Real-money results from ${record.liveTrades} live order${record.liveTrades === 1 ? "" : "s"} on Polymarket.${record.paperTrades > 0 ? ` ${record.paperTrades} practice fill${record.paperTrades === 1 ? " is" : "s are"} excluded.` : ""}`}
+        </p>
+      )}
       <p className="mb-4 text-sm text-[var(--c-dim)]">
         <span className="text-white">{record.runs}</span> runs
         {successRate != null && (
@@ -47,7 +58,7 @@ export default function TrackRecordView({ record, showProof }: { record: TrackRe
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Win rate" value={record.winRate != null ? `${record.winRate}%` : "—"} />
-            <Stat label="Realized P&L" value={money(pnl)} tone={pnl > 0 ? "up" : pnl < 0 ? "down" : undefined} />
+            <Stat label={simulated ? "Simulated P&L" : "Realized P&L"} value={money(pnl)} tone={pnl > 0 ? "up" : pnl < 0 ? "down" : undefined} />
             <Stat label="Resolved" value={`${record.wins}W · ${record.losses}L`} />
             <Stat label="Trades" value={`${record.trades}`} />
           </div>

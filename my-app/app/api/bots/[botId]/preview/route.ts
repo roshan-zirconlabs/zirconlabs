@@ -5,7 +5,7 @@ import { strategySpec, evaluateRule, describeStrategy } from "@/lib/workflow/str
 import { resolveActiveMarket } from "@/lib/workflow/active-market";
 import { fetchCandles, CandleError } from "@/lib/workflow/candles";
 import { MarketError } from "@/lib/polymarket-markets";
-import { simulateBuy } from "@/lib/paper-fill";
+import { CRYPTO_TAKER_FEE_RATE, simulateBuy } from "@/lib/paper-fill";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bot
     let fill: { amount: number; shares: number; price: number } | null = null;
     let blocked: string | null = null;
     try {
-      fill = simulateBuy(book.data.asks, spec.stakeUsd, spec.maxPrice);
+      fill = simulateBuy(book.data.asks, spec.stakeUsd, spec.maxPrice, CRYPTO_TAKER_FEE_RATE);
       if (fill.shares + 1e-8 < book.data.min_order_size) {
         blocked = `This market's minimum order is ${book.data.min_order_size} shares; $${spec.stakeUsd} buys only ${fill.shares.toFixed(2)}.`;
         fill = null;

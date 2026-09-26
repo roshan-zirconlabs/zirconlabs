@@ -35,7 +35,7 @@ type Preview = {
 
 const DEFAULTS: Spec = {
   version: 1, source: "schedule", asset: "BTC", timeframe: "15m", rule: "momentum",
-  fastPeriod: 9, slowPeriod: 21, stakeUsd: 10, maxPrice: 0.95, mode: "paper",
+  fastPeriod: 9, slowPeriod: 21, stakeUsd: 10, maxPrice: 0.55, mode: "paper",
 };
 
 const CADENCE: Record<Spec["timeframe"], string> = {
@@ -241,10 +241,10 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
           <label className="block">
             <span className="c-label">Never pay more than</span>
             <select className={fieldClass} value={spec.maxPrice} onChange={e => set("maxPrice", Number(e.target.value))}>
-              {[0.6, 0.7, 0.8, 0.9, 0.95, 0.99].map(p => <option key={p} value={p}>{Math.round(p * 100)}¢ per share</option>)}
+              {[0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99].map(p => <option key={p} value={p}>{Math.round(p * 100)}¢ per share</option>)}
             </select>
             <span className="mt-1.5 block text-xs leading-relaxed text-[var(--c-faint)]">
-              A share pays $1 if it wins. Paying 60¢ means the market sees a 60% chance. Lower caps skip more runs.
+              A share pays $1 if it wins. At {Math.round(spec.maxPrice * 100)}¢ you risk {Math.round(spec.maxPrice * 100)}¢ to win {100 - Math.round(spec.maxPrice * 100)}¢, and you need to be right more than {Math.round(spec.maxPrice * 100)}% of the time (plus fees) to profit. Lower caps skip more runs.
             </span>
           </label>
         </div>
