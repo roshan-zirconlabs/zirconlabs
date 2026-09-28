@@ -27,15 +27,15 @@ function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
 }
 
 const STATS = [
-  { value: <>15m–1d</>, label: "Market windows your bots can trade" },
+  { value: <>Any</>, label: "Open Polymarket market — politics, sports, crypto" },
   { value: <>$1</>, label: "Minimum order — start as small as you like" },
   { value: <>0</>, label: "Seed phrases, gas tokens or wallets to juggle" },
-  { value: <CountUp to={90} suffix="s" />, label: "From a written rule to a running bot" },
+  { value: <CountUp to={1000} suffix="" />, label: "Practice dollars to learn with, before any real money" },
 ];
 
 const FOOTER = [
-  { title: "Product", links: [["Bots", "/bots"], ["Markets", "/markets"], ["Backtest", "/backtest"], ["Wallet", "/wallet"]] },
-  { title: "Account", links: [["Sign in", "/auth/sign-in"], ["Create account", "/auth/sign-up"], ["Plans", "/billing"], ["Connections", "/connections"]] },
+  { title: "Product", links: [["Markets", "/markets"], ["Portfolio", "/dashboard"], ["Automations", "/automations"]] },
+  { title: "Account", links: [["Sign in", "/auth/sign-in"], ["Wallet & settings", "/account"]] },
 ];
 
 export default function LaunchWindow() {
@@ -59,15 +59,15 @@ export default function LaunchWindow() {
             The launch window <em className="c-nebula-text">is open.</em>
           </h2>
           <p className="mx-auto mt-6 max-w-md text-lg leading-relaxed text-[var(--c-dim)]">
-            Start in paper mode, watch your bot fly against real markets, and go live only when you trust it.
+            Start with practice money on real markets, set your stops, and go live only when you trust it.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/auth/sign-up" className="c-btn-primary w-full sm:w-auto">
-              Launch your first bot
+            <Link href="/auth/sign-in" className="c-btn-primary w-full sm:w-auto">
+              Start practicing free
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href="/bots" className="c-btn-ghost w-full sm:w-auto">
-              Explore example bots
+            <Link href="/markets" className="c-btn-ghost w-full sm:w-auto">
+              Browse markets
             </Link>
           </div>
         </div>
@@ -85,7 +85,7 @@ export default function LaunchWindow() {
                 <span className="text-lg font-semibold tracking-tight">Zircon Labs</span>
               </Link>
               <p className="mt-4 max-w-xs text-sm leading-relaxed text-[var(--c-faint)]">
-                Autonomous trading bots for Polymarket, built on KeeperHub.
+                Stop-loss, take-profit and automation for Polymarket traders.
               </p>
             </div>
             {FOOTER.map((col) => (

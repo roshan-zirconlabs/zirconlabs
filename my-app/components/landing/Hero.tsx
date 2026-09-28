@@ -30,36 +30,36 @@ export default function Hero() {
         <span className="rounded-full bg-[rgba(224,97,159,0.18)] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--c-pink)]">
           Now live
         </span>
-        Autonomous bots for Polymarket
+        Stop-loss & take-profit for Polymarket
         <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
       </a>
 
       <h1 className="c-serif max-w-5xl text-[clamp(3.25rem,10vw,8.75rem)] leading-[0.9] tracking-[-0.025em]">
         <span {...rise(0.1)} className="c-rise block">
-          Put your strategy
+          Trade Polymarket
         </span>
         <span {...rise(0.25)} className="c-rise c-nebula-text block italic">
-          into orbit.
+          with a safety net.
         </span>
       </h1>
 
       <p {...rise(0.45)} className="c-rise mt-8 max-w-xl text-[17px] leading-relaxed text-[var(--c-dim)] sm:text-lg">
-        Zircon turns a chart signal into a bot that trades Polymarket for you — guarded on every order,
-        traceable on every fill, and still running while you sleep.
+        Polymarket has no stop-loss. Zircon adds it — plus take-profit, trailing stops, buy-at-your-price
+        and TradingView alerts — and watches the market for you, even while you sleep.
       </p>
 
       <div {...rise(0.6)} className="c-rise mt-10 flex flex-col items-center gap-3 sm:flex-row">
-        <Link href="/auth/sign-up" className="c-btn-primary w-full sm:w-auto">
-          Launch your first bot
+        <Link href="/auth/sign-in" className="c-btn-primary w-full sm:w-auto">
+          Start with $1,000 practice
           <ArrowRight className="h-4 w-4" />
         </Link>
         <a href="#console" className="c-btn-ghost w-full sm:w-auto">
-          Watch one fly
+          See it work
         </a>
       </div>
 
       <ul {...rise(0.75)} className="c-rise mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-[var(--c-faint)]">
-        {["No wallet setup", "No gas fees", "Paper mode first"].map((t) => (
+        {["No wallet extension", "No gas fees", "Practice mode first"].map((t) => (
           <li key={t} className="flex items-center gap-2">
             <span className="h-1 w-1 rounded-full bg-[var(--c-pink)]" />
             {t}

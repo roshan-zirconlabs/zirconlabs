@@ -51,20 +51,16 @@ export async function provisionManagedWallet(userId: string, email?: string | nu
 export function managedWalletConfigured() { return Boolean(process.env.PRIVY_APP_ID?.trim() && process.env.PRIVY_APP_SECRET?.trim()); }
 
 /**
- * Explicit launch gate for the signed Polymarket CLOB V2 adapter.
- *
- * The relayer credential is part of the gate, not an optional extra:
- * Polymarket rejects orders from a plain wallet, and the Deposit Wallet it
- * requires instead can only be created through their relayer. Without it a
- * live order fails at submission, after a budget reservation has been taken.
+ * Whether this deployment can place real orders at all. Live trading needs the
+ * wallet provider, Polymarket's builder key (Deposit Wallets are created and
+ * trade through Polymarket's relayer) and an explicit operator switch. Each
+ * user must additionally turn live trading on for their own account.
  */
-export function liveExecutionConfigured() {
+export function liveTradingAvailable() {
   const builder = Boolean(
     process.env.POLYMARKET_BUILDER_KEY?.trim() &&
     process.env.POLYMARKET_BUILDER_SECRET?.trim() &&
     process.env.POLYMARKET_BUILDER_PASSPHRASE?.trim(),
   );
-  return managedWalletConfigured() && builder
-    && process.env.POLYMARKET_CLOB_V2_ADAPTER_READY === "true"
-    && process.env.POLYMARKET_LIVE_ENABLED === "true";
+  return managedWalletConfigured() && builder && process.env.POLYMARKET_LIVE_ENABLED === "true";
 }

@@ -3,173 +3,101 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChartLine, Clock, ExternalLink, RefreshCw, TrendingDown, TrendingUp, Zap } from "lucide-react";
-import { EmptyState, Notice, PageHeader, PageShell, StatusBadge } from "@/components/ui/page";
+import { Search, TrendingUp } from "lucide-react";
+import { PageHeader, PageShell, EmptyState, Notice } from "@/components/ui/page";
 import Skeleton from "@/components/ui/skeleton";
+import { api, cents, until } from "@/lib/client";
 
-type BtcMarket = {
-  slug: string;
-  timeframe: string;
-  startTs: number;
-  endTs: number;
-  upTokenId: string;
-  downTokenId: string;
-  upPrice: number | null;
-  downPrice: number | null;
-};
+type Outcome = { label: string; tokenId: string; price: number | null };
+type Market = { slug: string; question: string; endDate: string | null; volume24h: number; outcomes: Outcome[] };
+type Group = { slug: string; title: string; image: string | null; volume24h: number; markets: Market[] };
 
-const FILTERS = [
-  { id: "all", label: "All windows" },
-  { id: "15m", label: "15 min" },
-  { id: "1h", label: "1 hour" },
-  { id: "4h", label: "4 hours" },
-  { id: "1d", label: "Daily" },
-];
-
-function formatTimeLeft(sec: number): string {
-  if (sec <= 0) return "Resolving";
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
-  return `${s}s`;
-}
-
-// Only this label re-renders every second, not the whole market grid.
-function Countdown({ startTs, endTs }: { startTs: number; endTs: number }) {
-  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
-  useEffect(() => {
-    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
-    return () => clearInterval(id);
-  }, []);
-  if (startTs > now) return <span>Opens in {formatTimeLeft(startTs - now)}</span>;
-  return <span>{formatTimeLeft(endTs - now)}</span>;
-}
+const compact = (n: number) => (n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n.toFixed(0)}`);
 
 export default function MarketsPage() {
-  const [filter, setFilter] = useState("all");
-  const markets = useQuery({
-    queryKey: ["btc-markets"],
-    refetchInterval: 30_000,
-    queryFn: async (): Promise<BtcMarket[]> => {
-      const res = await fetch("/api/markets", { cache: "no-store" });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || (json.error && !json.markets?.length)) throw new Error(json.error || "Failed to connect to Polymarket.");
-      return json.markets ?? [];
-    },
-  });
+  const [input, setInput] = useState("");
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(input.trim()), 300);
+    return () => clearTimeout(t);
+  }, [input]);
 
-  const list = markets.data ?? [];
-  const filtered = filter === "all" ? list : list.filter((m) => m.timeframe === filter);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["markets", query],
+    queryFn: () => api<{ events: Group[] }>(`/api/markets?q=${encodeURIComponent(query)}`),
+    staleTime: 20_000,
+  });
 
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Observatory"
-        title="Live"
-        accent="markets."
-        description="Bitcoin up-or-down windows on Polymarket, with live odds. Prices refresh every 30 seconds."
-        actions={
-          <Link href="/markets/graphs" className="c-btn-ghost">
-            <ChartLine className="h-4 w-4" /> Charts
-          </Link>
-        }
+        eyebrow="Markets"
+        title="Find a market"
+        description="Every open Polymarket market. Pick one to trade it, protect a position, or let an automation buy at your price."
       />
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="c-tabs flex-wrap" role="group" aria-label="Filter by window">
-          {FILTERS.map((f) => (
-            <button key={f.id} type="button" className="c-tab" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <button type="button" onClick={() => void markets.refetch()} disabled={markets.isFetching} className="c-btn-ghost c-btn-sm">
-          <RefreshCw className={`h-3.5 w-3.5 ${markets.isFetching ? "animate-spin" : ""}`} />
-          {markets.isFetching ? "Refreshing" : "Refresh"}
-        </button>
-      </div>
+      <label className="relative block max-w-2xl">
+        <span className="sr-only">Search markets</span>
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--c-faint)]" />
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Search — e.g. bitcoin, election, Fed, Champions League"
+          className="c-input !min-h-12 !rounded-full !pl-11"
+          autoFocus
+        />
+      </label>
 
-      {markets.error && (
-        <div className="mb-6">
-          <Notice tone="error">{(markets.error as Error).message}</Notice>
-        </div>
-      )}
+      <p className="mt-6 flex items-center gap-2 text-sm text-[var(--c-dim)]">
+        {query ? <>Results for “{query}”</> : <><TrendingUp className="h-4 w-4" /> Trending by 24h volume</>}
+      </p>
 
-      {markets.isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-72" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        !markets.error && <EmptyState title="Quiet skies" body="No open markets for this window right now. They rotate automatically — check back shortly." />
-      ) : (
-        <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((m) => {
-            const up = m.upPrice ?? 0.5;
-            const down = m.downPrice ?? 0.5;
-            const upPct = Math.round(up * 100);
-            const downPct = Math.round(down * 100);
-            return (
-              <li key={m.slug} className="c-panel c-panel-hover flex flex-col p-6">
-                <div className="flex items-center justify-between gap-2">
-                  <StatusBadge tone="practice">BTC · {m.timeframe}</StatusBadge>
-                  <span className="c-mono flex items-center gap-1.5 text-xs text-[var(--c-dim)]">
-                    <Clock className="h-3.5 w-3.5 text-[var(--c-pink)]" />
-                    <Countdown startTs={m.startTs} endTs={m.endTs} />
-                  </span>
-                </div>
-                <h2 className="c-mono mt-4 truncate text-sm text-white" title={m.slug}>
-                  {m.slug}
-                </h2>
-
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-emerald-300/30 bg-emerald-50 p-4">
-                    <div className="flex items-center justify-between text-xs text-[var(--c-up)]">
-                      <span>Up</span>
-                      <TrendingUp className="h-3.5 w-3.5" />
-                    </div>
-                    <p className="c-serif mt-2 text-4xl leading-none text-white">{upPct}¢</p>
-                  </div>
-                  <div className="rounded-2xl border border-rose-300/30 bg-rose-50 p-4">
-                    <div className="flex items-center justify-between text-xs text-[var(--c-down)]">
-                      <span>Down</span>
-                      <TrendingDown className="h-3.5 w-3.5" />
-                    </div>
-                    <p className="c-serif mt-2 text-4xl leading-none text-white">{downPct}¢</p>
-                  </div>
-                </div>
-
-                <div className="mt-4" aria-label={`Market odds: ${upPct}% up, ${downPct}% down`}>
-                  <div className="flex h-1.5 overflow-hidden rounded-full bg-[rgba(251,127,154,0.45)]">
-                    <div className="h-full rounded-full bg-gradient-to-r from-[#22c58b] to-[#5ee0a6]" style={{ width: `${upPct}%` }} />
-                  </div>
-                  <div className="c-mono mt-1.5 flex justify-between text-[11px] text-[var(--c-faint)]">
-                    <span>{(up * 100).toFixed(1)}% up</span>
-                    <span>{(down * 100).toFixed(1)}% down</span>
-                  </div>
-                </div>
-
-                <div className="mt-6 flex items-center justify-between gap-2 border-t border-white/10 pt-5">
-                  <a
-                    href={`https://polymarket.com/market/${m.slug}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sm text-[var(--c-dim)] hover:text-white"
-                  >
-                    Polymarket <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                  <Link href="/bots" className="c-btn-primary c-btn-sm">
-                    <Zap className="h-3.5 w-3.5" /> Automate
+      <div className="mt-4 space-y-4">
+        {isLoading && Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-40 w-full" />)}
+        {error && (
+          <Notice tone="error">
+            {(error as Error).message}{" "}
+            <button onClick={() => refetch()} className="underline">Retry</button>
+          </Notice>
+        )}
+        {data && data.events.length === 0 && (
+          <EmptyState title="No open markets found" body="Try a broader word, or clear the search to see what's trending." />
+        )}
+        {data?.events.map((g) => (
+          <section key={g.slug} className="c-panel p-5">
+            <div className="flex items-start gap-3">
+              {g.image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={g.image} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover" loading="lazy" />
+              )}
+              <div className="min-w-0 flex-1">
+                <h2 className="font-semibold text-white">{g.title}</h2>
+                <p className="text-xs text-[var(--c-faint)]">{compact(g.volume24h)} traded in 24h</p>
+              </div>
+            </div>
+            <ul className="mt-3 divide-y divide-white/5">
+              {g.markets.slice(0, 6).map((m) => (
+                <li key={m.slug}>
+                  <Link href={`/markets/${m.slug}`} className="-mx-2 flex flex-col gap-2 rounded-xl px-2 py-3 transition-colors hover:bg-white/5 sm:flex-row sm:items-center sm:gap-4">
+                    <span className="w-full min-w-0 flex-1">
+                      <span className="block text-sm text-white sm:truncate">{m.question}</span>
+                      <span className="text-xs text-[var(--c-faint)]">{until(m.endDate)}</span>
+                    </span>
+                    <span className="flex max-w-full shrink-0 flex-wrap gap-1.5">
+                      {m.outcomes.slice(0, 2).map((o, i) => (
+                        <span key={o.tokenId} className={`c-chip !text-xs ${i === 0 ? "border-emerald-300/30 text-[var(--c-up)]" : "border-rose-300/30 text-[var(--c-down)]"}`}>
+                          {o.label} {cents(o.price)}
+                        </span>
+                      ))}
+                    </span>
                   </Link>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                </li>
+              ))}
+            </ul>
+            {g.markets.length > 6 && <p className="mt-2 text-xs text-[var(--c-faint)]">+{g.markets.length - 6} more markets in this event — search to narrow down.</p>}
+          </section>
+        ))}
+      </div>
     </PageShell>
   );
 }

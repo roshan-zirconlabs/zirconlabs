@@ -1,33 +1,67 @@
-/**
- * Polymarket's taker fee rate for crypto markets.
- * fee (USDC) = shares × feeRate × p × (1 − p) — https://docs.polymarket.com/trading/fees (checked 2026-09-27).
- * About 3.5% of notional at 50¢, which is where up/down bots usually buy.
- */
-export const CRYPTO_TAKER_FEE_RATE = 0.07;
+import type { FeeSchedule } from "./polymarket/markets";
+import type { Level } from "./polymarket/prices";
 
 /**
- * A quote-time fill-or-kill simulation, not an exchange execution or backtest.
+ * Practice fills, walked against the real order book with the market's real
+ * taker fee: fee (USD) = shares × rate × (p × (1 − p))^exponent
+ * (https://docs.polymarket.com/trading/fees, checked 2026-09-29).
  *
- * With a fee rate, the fee is paid out of the stake, so the total cost stays at
- * `amount` and the fill buys fewer shares — a paper result is never better than
- * the same order would have been live.
+ * These are fill-and-kill: whatever the book offers within the price limit
+ * fills, the rest is dropped — the same as the live market orders we place.
  */
-export function simulateBuy(asks: { price: string; size: string }[], amount: number, maxPrice: number, feeRate = 0) {
-  if (!Number.isFinite(amount) || amount <= 0 || amount > 10000 || !Number.isFinite(maxPrice) || maxPrice <= 0 || maxPrice > 1) throw new Error("Invalid paper order amount or price limit.");
-  if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate >= 1) throw new Error("Invalid fee rate.");
-  const levels = asks.map(a => ({ price: Number(a.price), size: Number(a.size) }));
-  if (levels.some(a => !Number.isFinite(a.price) || !Number.isFinite(a.size) || a.price <= 0 || a.price > 1 || a.size < 0)) throw new Error("Invalid order book.");
-  levels.sort((a, b) => a.price - b.price);
-  let remaining = amount; let shares = 0; let fee = 0;
-  for (const level of levels) {
-    if (level.price > maxPrice) break;
-    const spend = Math.min(remaining, level.price * level.size);
-    const bought = spend / level.price;
-    shares += bought; remaining -= spend;
-    fee += bought * feeRate * level.price * (1 - level.price);
-    if (remaining < 1e-8) break;
+
+export class FillError extends Error {}
+
+export function takerFee(shares: number, price: number, fee: FeeSchedule | null): number {
+  if (!fee || shares <= 0) return 0;
+  return shares * fee.rate * Math.pow(price * (1 - price), fee.exponent);
+}
+
+export type Fill = { shares: number; usd: number; feeUsd: number; avgPrice: number };
+
+/**
+ * Spends up to `budgetUsd` all-in (fees included), never paying more than
+ * `maxPrice` per share. `asks` must be best (lowest) first.
+ */
+export function simulateBuy(asks: Level[], budgetUsd: number, maxPrice: number, fee: FeeSchedule | null): Fill {
+  if (!(budgetUsd > 0) || !(maxPrice > 0 && maxPrice < 1)) throw new FillError("Invalid order amount or price limit.");
+  let remaining = budgetUsd;
+  let shares = 0;
+  let spent = 0;
+  let feeUsd = 0;
+  for (const level of asks) {
+    if (level.price > maxPrice || remaining <= 1e-9) break;
+    // All-in cost of one share at this level, fee included.
+    const unit = level.price + takerFee(1, level.price, fee);
+    const take = Math.min(level.size, remaining / unit);
+    if (take <= 0) continue;
+    shares += take;
+    spent += take * level.price;
+    feeUsd += takerFee(take, level.price, fee);
+    remaining -= take * unit;
   }
-  if (remaining > 1e-8 || shares <= 0) throw new Error("Insufficient ask liquidity within the price limit. No paper fill recorded.");
-  const net = shares * (amount / (amount + fee));
-  return { amount, shares: net, price: amount / net };
+  if (shares <= 1e-9) throw new FillError(`Nothing is offered at or below ${Math.round(maxPrice * 100)}¢ right now.`);
+  return { shares, usd: spent + feeUsd, feeUsd, avgPrice: spent / shares };
+}
+
+/**
+ * Sells up to `shares`, never accepting less than `minPrice` per share.
+ * `bids` must be best (highest) first. Proceeds are after fees.
+ */
+export function simulateSell(bids: Level[], shares: number, minPrice: number, fee: FeeSchedule | null): Fill {
+  if (!(shares > 0) || !(minPrice > 0 && minPrice < 1)) throw new FillError("Invalid order size or price limit.");
+  let remaining = shares;
+  let sold = 0;
+  let gross = 0;
+  let feeUsd = 0;
+  for (const level of bids) {
+    if (level.price < minPrice || remaining <= 1e-9) break;
+    const take = Math.min(level.size, remaining);
+    sold += take;
+    gross += take * level.price;
+    feeUsd += takerFee(take, level.price, fee);
+    remaining -= take;
+  }
+  if (sold <= 1e-9) throw new FillError(`No one is buying at or above ${Math.round(minPrice * 100)}¢ right now.`);
+  return { shares: sold, usd: gross - feeUsd, feeUsd, avgPrice: gross / sold };
 }

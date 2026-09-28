@@ -12,7 +12,7 @@ type AccountRow = { id: string; providerWalletId: string; depositWalletAddress: 
 export async function tradingDepositWallet(account: AccountRow): Promise<string> {
   if (account.depositWalletAddress) return account.depositWalletAddress;
   const depositWallet = await resolveDepositWalletAddress(account.providerWalletId);
-  await prisma.polymarketManagedAccount.update({
+  await prisma.tradingAccount.update({
     where: { id: account.id },
     data: { depositWalletAddress: depositWallet },
   }).catch(() => { /* A concurrent resolve may have set it; the value is deterministic. */ });

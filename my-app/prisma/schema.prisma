@@ -6,101 +6,40 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Every order, position and automation belongs to one book. Practice is
+/// simulated against the real order book; Live places real orders.
+enum TradingMode {
+  PAPER
+  LIVE
+}
+
 model User {
-  id                      String    @id @default(cuid())
-  email                   String?   @unique
-  name                    String?
-  image                   String?
-  walletAddress           String?   @unique
-  polymarketAccountType   String? // EOA, POLY_PROXY, POLY_GNOSIS_SAFE, or POLY_1271
-  polymarketSignerAddress String?
-  emailVerified           DateTime?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  accounts            Account[]
-  sessions            Session[]
-  bots                Bot[]
-  subscription        Subscription?
-  backtestResults     BacktestResult[]
-  trades              Trade[]
-  keeperhubConnection KeeperhubConnection?
-  polymarketManagedAccount PolymarketManagedAccount?
-  polymarketOrderAttempts PolymarketOrderAttempt[]
-  walletWithdrawals       WalletWithdrawal[]
-}
+  /// The book the app shows and new automations default to.
+  mode      TradingMode @default(PAPER)
+  /// Practice cash in USD.
+  paperCash Decimal     @default(1000) @db.Decimal(14, 6)
 
-/// A request to move collateral out of a user's trading wallet. Recorded before
-/// the transfer is signed so a retry cannot send the same withdrawal twice.
-model WalletWithdrawal {
-  id          String   @id @default(cuid())
-  userId      String
-  requestId   String
-  destination String
-  amountUsd   Decimal  @db.Decimal(12, 6)
-  status      String   @default("SUBMITTING")
-  txHash      String?
-  error       String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  /// Telegram chat that receives alerts, linked with a one-time code.
+  telegramChatId      String?   @unique
+  telegramLinkCode    String?   @unique
+  telegramLinkExpires DateTime?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, requestId])
-  @@index([userId, createdAt])
-}
-
-/// Durable duplicate-request guard and budget reservation for signed test buys.
-/// Uncertain submissions retain their reservation until reconciled.
-model PolymarketOrderAttempt {
-  id          String   @id @default(cuid())
-  userId      String
-  requestId   String
-  marketSlug  String
-  outcome     String
-  assetId     String
-  amountUsd   Decimal  @db.Decimal(12, 2)
-  maxPrice    Decimal  @db.Decimal(10, 6)
-  status      String   @default("SUBMITTING")
-  orderId     String?
-  receipt     Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@unique([userId, requestId])
-  @@index([userId, createdAt])
-}
-
-/// One isolated Polygon-capable signing wallet per user. The private key is
-/// held by the configured wallet provider (Privy in production), never here.
-model PolymarketManagedAccount {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  provider          String   @default("privy")
-  providerWalletId  String   @unique
-  walletAddress     String   @unique
-  /// Polymarket Deposit Wallet derived from walletAddress (the signer). Funds
-  /// live here and it is the order maker; resolved lazily and cached.
-  depositWalletAddress String? @unique
-  status            String   @default("ACTIVE")
-  liveEnabled       Boolean  @default(false)
-  dailyLimitUsd     Float    @default(100)
-  lastCheckedAt     DateTime?
-  lastError         String?  @db.Text
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([status])
-}
-
-model KeeperhubConnection {
-  userId       String   @id
-  encryptedKey String   @db.Text
-  keyPrefix    String
-  verifiedAt   DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts       Account[]
+  sessions       Session[]
+  tradingAccount TradingAccount?
+  paperPositions PaperPosition[]
+  automations    Automation[]
+  orders         Order[]
+  activity       Activity[]
+  withdrawals    Withdrawal[]
 }
 
 model Account {
@@ -138,148 +77,201 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-/// A bot in ZLabs is just a pointer to a KeeperHub workflow.
-/// All bot logic, triggers, and execution live on KeeperHub. ZLabs only owns
-/// the user's identity and the link to their KH workflow.
-model Bot {
-  id                  String    @id @default(cuid())
-  userId              String
-  name                String
-  status              BotStatus @default(INACTIVE)
-  keeperhubWorkflowId String?   @unique
-  workflow            Json?
-  /// Guided strategy spec (lib/workflow/strategy.ts). Null for raw-canvas bots.
-  strategy            Json?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  /// Set when the owner publishes this strategy to the public track-record feed.
-  listedAt            DateTime?
-  /// Hash of the KeeperHub-executed transaction that anchors this publication on-chain.
-  attestationTx       String?
-  /// USDC an agent pays per call to rent this strategy, settled via KeeperHub's x402 marketplace.
-  priceUsdc           Float?
+/// A user's live Polymarket account: a provider-held signer (never stored
+/// here) and the Deposit Wallet that holds funds and makes orders.
+model TradingAccount {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  provider             String   @default("privy")
+  providerWalletId     String   @unique
+  signerAddress        String   @unique
+  depositWalletAddress String?  @unique
+  liveEnabled          Boolean  @default(false)
+  /// Most USD of live buys allowed per UTC day.
+  dailyLimitUsd        Decimal  @default(100) @db.Decimal(12, 2)
+  /// Kill switch: nothing live is placed while set.
+  paused               Boolean  @default(false)
+  /// Last time winnings were checked for automatic claiming.
+  lastClaimCheckAt     DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trades Trade[]
-
-  @@index([userId])
-  @@index([keeperhubWorkflowId])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-enum BotStatus {
+/// Practice holdings. Live holdings are read from Polymarket, never stored.
+model PaperPosition {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenId     String
+  conditionId String
+  marketSlug  String
+  question    String
+  outcome     String
+  shares      Decimal   @db.Decimal(20, 6)
+  /// Total paid for the shares still held, including fees.
+  costUsd     Decimal   @db.Decimal(14, 6)
+  endDate     DateTime?
+  settledAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tokenId])
+  @@index([settledAt])
+}
+
+enum AutomationKind {
+  /// Sells a held position on take-profit, stop-loss, trailing stop or time.
+  EXIT
+  /// Buys when the price reaches a level.
+  ENTRY
+  /// Buys or sells when an external alert (e.g. TradingView) arrives.
+  WEBHOOK
+}
+
+enum AutomationStatus {
   ACTIVE
-  INACTIVE
   PAUSED
+  DONE
+  CANCELLED
+  FAILED
+}
+
+model Automation {
+  id                String           @id @default(cuid())
+  userId            String
+  mode              TradingMode
+  kind              AutomationKind
+  status            AutomationStatus @default(ACTIVE)
+  tokenId           String
+  conditionId       String
+  marketSlug        String
+  question          String
+  outcome           String
+  endDate           DateTime?
+  /// User settings, validated per kind by lib/automations/config.ts.
+  config            Json
+  /// Engine-owned state such as a trailing stop's peak price.
+  state             Json             @default("{}")
+  /// SHA-256 of a webhook automation's secret; the secret itself is shown once.
+  webhookSecretHash String?          @unique
+  /// Lease that stops two workers acting on the same automation at once.
+  lockedUntil       DateTime?
+  lastPrice         Decimal?         @db.Decimal(10, 6)
+  lastCheckedAt     DateTime?
+  lastError         String?          @db.Text
+  firedAt           DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders   Order[]
+  activity Activity[]
+
+  @@index([status])
+  @@index([userId, createdAt])
+}
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderStatus {
+  /// Recorded before the order is sent; stays here only if the process died.
+  SUBMITTING
+  FILLED
+  PARTIAL
+  /// Nothing matched within the price limit.
+  UNFILLED
+  REJECTED
+  /// The exchange queued matching; it may still fill.
+  QUEUED
+  /// The request may have reached the exchange; never retried blindly.
+  UNKNOWN
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  automationId    String?
+  mode            TradingMode
+  side            OrderSide
+  tokenId         String
+  conditionId     String
+  marketSlug      String
+  question        String
+  outcome         String
+  /// BUY: all-in USD to spend. SELL: shares to sell.
+  requested       Decimal     @db.Decimal(20, 6)
+  /// BUY: highest acceptable price. SELL: lowest acceptable price.
+  limitPrice      Decimal     @db.Decimal(10, 6)
+  filledShares    Decimal     @default(0) @db.Decimal(20, 6)
+  /// BUY: USD spent including fees. SELL: USD received after fees.
+  filledUsd       Decimal     @default(0) @db.Decimal(14, 6)
+  feeUsd          Decimal     @default(0) @db.Decimal(14, 6)
+  status          OrderStatus @default(SUBMITTING)
+  exchangeOrderId String?
+  txHashes        String[]
+  reason          String
+  error           String?     @db.Text
+  /// One order per intent: a retried request finds this row instead of trading twice.
+  idempotencyKey  String      @unique
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  automation Automation? @relation(fields: [automationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+enum ActivityLevel {
+  INFO
+  SUCCESS
+  WARNING
   ERROR
 }
 
-/// Mirror of trades that originated from a KeeperHub workflow run. Populated
-/// only by `POST /api/ingest/trade` (called by the workflow's HTTP-Request node).
-model Trade {
-  id         String      @id @default(cuid())
-  userId     String
-  botId      String?
-  signal     Signal
-  marketSlug String
-  tokenId    String
-  direction  Direction
-  side       TradeSide
-  amount     Float
-  price      Float
-  shares     Float?
-  status     TradeStatus @default(PENDING)
-  orderId    String?
-  pnl        Float?
-  pnlPct     Float?
-  executedAt DateTime?
-  closedAt   DateTime?
-  closePrice Float?
-  createdAt  DateTime    @default(now())
+/// The audit trail: what happened and why. Also the queue for alerts.
+model Activity {
+  id           String         @id @default(cuid())
+  userId       String
+  automationId String?
+  orderId      String?
+  mode         TradingMode?
+  level        ActivityLevel  @default(INFO)
+  title        String
+  detail       String?        @db.Text
+  notifiedAt   DateTime?
+  createdAt    DateTime       @default(now())
 
-  keeperhubExecutionId String? @unique
-  keeperhubRunId       String?
-  paper                Boolean @default(true)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  automation Automation? @relation(fields: [automationId], references: [id], onDelete: SetNull)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bot  Bot? @relation(fields: [botId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([botId])
-  @@index([marketSlug])
-  @@index([status])
-  @@index([keeperhubExecutionId])
+  @@index([userId, createdAt])
+  @@index([notifiedAt, level])
 }
 
-enum Signal {
-  BUY
-  SELL
-}
-
-enum Direction {
-  UP
-  DOWN
-}
-
-enum TradeSide {
-  BUY
-  SELL
-}
-
-enum TradeStatus {
-  PENDING
-  FILLED
-  PARTIALLY_FILLED
-  FAILED
-  CANCELLED
-  CLOSED
-}
-
-model Subscription {
-  id                   String             @id @default(cuid())
-  userId               String             @unique
-  plan                 Plan               @default(FREE)
-  stripeCustomerId     String?            @unique
-  stripeSubscriptionId String?            @unique
-  stripePriceId        String?
-  status               SubscriptionStatus @default(ACTIVE)
-  currentPeriodStart   DateTime?
-  currentPeriodEnd     DateTime?
-  cancelAtPeriodEnd    Boolean            @default(false)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([stripeCustomerId])
-}
-
-enum Plan {
-  FREE
-  PRO
-  ENTERPRISE
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELED
-  PAST_DUE
-  INCOMPLETE
-}
-
-model BacktestResult {
+/// A request to move collateral out of a user's trading wallet. Recorded before
+/// the transfer is signed so a retry cannot send the same withdrawal twice.
+model Withdrawal {
   id          String   @id @default(cuid())
   userId      String
-  name        String   @default("Untitled")
-  csvHash     String
-  marketType  String
-  totalTrades Int      @default(0)
-  winRate     Float    @default(0)
-  totalPnl    Float    @default(0)
-  maxDrawdown Float    @default(0)
-  summary     Json
+  requestId   String
+  destination String
+  amountUsd   Decimal  @db.Decimal(12, 6)
+  status      String   @default("SUBMITTING")
+  txHash      String?
+  error       String?  @db.Text
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@unique([userId, requestId])
+  @@index([userId, createdAt])
 }

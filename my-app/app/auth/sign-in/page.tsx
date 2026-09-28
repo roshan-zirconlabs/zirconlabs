@@ -16,10 +16,10 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           <OrbitMark className="h-12 w-12" />
           <p className="c-eyebrow mt-8">Welcome aboard</p>
           <h1 className="c-serif mt-3 text-5xl leading-none text-white">
-            Enter <em className="c-nebula-text">mission control.</em>
+            Trade with a <em className="c-nebula-text">safety net.</em>
           </h1>
           <p className="mt-4 leading-relaxed text-[var(--c-dim)]">
-            Sign in to save strategies, launch bots and review every run. Market research works without an account.
+            Sign in to trade Polymarket with a $1,000 practice balance, protect positions with stop-losses, and let automations watch the market for you.
           </p>
 
           {params.error && (
@@ -60,14 +60,11 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
             <Link href="/markets" className="c-btn-ghost c-btn-sm">
               Explore markets
             </Link>
-            <Link href="/backtest" className="c-btn-ghost c-btn-sm">
-              Try a backtest
-            </Link>
           </div>
 
           <p className="mt-8 flex items-start gap-2 border-t border-white/10 pt-6 text-xs leading-relaxed text-[var(--c-faint)]">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--c-pink)]" />
-            Zircon never asks for your wallet seed phrase or private key. Connecting KeeperHub is a separate, explicit step.
+            Zircon never asks for your wallet seed phrase or private key. You start in practice mode — no money moves until you fund a live wallet and switch it on.
           </p>
         </div>
       </div>

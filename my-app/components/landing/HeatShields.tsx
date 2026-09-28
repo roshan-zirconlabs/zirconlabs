@@ -70,9 +70,9 @@ export default function HeatShields() {
               </div>
             </div>
             <Copy
-              kicker="01 · Window lock"
-              title="One order per window."
-              body="A leaked webhook or a retried alert can't multiply a trade. Each bot gets one live slot per market window — full stop."
+              kicker="01 · Duplicate lock"
+              title="One order per decision."
+              body="A double-click, a retried request or a burst of alerts can't multiply a trade. Every order has a unique key, and alerts have a cooldown."
             />
           </Card>
 
@@ -94,7 +94,7 @@ export default function HeatShields() {
             <Copy
               kicker="02 · Ceiling"
               title="A hard price limit."
-              body="Every order carries a limit set from the market at signal time. A stale quote can never fill you worse."
+              body="Every order carries a price limit. Whatever can't fill within it is cancelled on the spot — never left resting on the book."
             />
           </Card>
 
@@ -122,7 +122,7 @@ export default function HeatShields() {
             <Copy
               kicker="04 · Your exit"
               title="Cash out any time."
-              body="Funds live in your own Deposit Wallet. Sell a position back to the book or withdraw whenever you want."
+              body="Funds sit in your dedicated trading wallet. Sell a position back to the book or withdraw to your own address whenever you want."
             />
           </Card>
         </div>

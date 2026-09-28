@@ -1,25 +1,51 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { simulateBuy } from "./paper-fill";
-test("paper buy consumes actual ask depth in price order", () => {
-  const result = simulateBuy([{ price: "0.6", size: "10" }, { price: "0.5", size: "4" }], 5, 0.7);
-  assert.equal(result.shares, 9);
-  assert.equal(result.amount, 5);
-  assert.equal(result.price, 5 / 9);
+import { simulateBuy, simulateSell, takerFee, FillError } from "./paper-fill";
+
+const crypto = { rate: 0.07, exponent: 1 };
+const close = (a: number, b: number) => Math.abs(a - b) < 1e-9;
+
+test("fee matches Polymarket's formula: 100 shares at 50¢ on a crypto market costs $1.75", () => {
+  assert.ok(close(takerFee(100, 0.5, crypto), 1.75));
+  assert.equal(takerFee(100, 0.5, null), 0);
 });
-test("insufficient depth and price limits do not produce fabricated fills", () => {
-  assert.throws(() => simulateBuy([{ price: "0.9", size: "1" }], 10, 0.8), /liquidity/);
+
+test("a buy walks the book best-price first and never exceeds the all-in budget", () => {
+  const asks = [{ price: 0.5, size: 4 }, { price: 0.6, size: 10 }];
+  const fill = simulateBuy(asks, 5, 0.7, null);
+  // 4 × 0.50 = $2, then $3 buys 5 shares at 0.60.
+  assert.ok(close(fill.shares, 9));
+  assert.ok(close(fill.usd, 5));
+  assert.ok(close(fill.avgPrice, 5 / 9));
 });
-test("the taker fee comes out of the stake, so a paper fill buys fewer shares at the same cost", () => {
-  // 20 shares at 50¢ for $10; fee = 20 × 0.07 × 0.5 × 0.5 = $0.35.
-  const noFee = simulateBuy([{ price: "0.5", size: "100" }], 10, 0.6);
-  const withFee = simulateBuy([{ price: "0.5", size: "100" }], 10, 0.6, 0.07);
-  assert.equal(noFee.shares, 20);
-  assert.equal(withFee.amount, 10);
-  assert.ok(Math.abs(withFee.shares - 20 * (10 / 10.35)) < 1e-9);
-  assert.ok(withFee.price > noFee.price);
+
+test("with fees, the same budget buys fewer shares and the total still equals the budget", () => {
+  const asks = [{ price: 0.5, size: 1000 }];
+  const fill = simulateBuy(asks, 10, 0.6, crypto);
+  const unit = 0.5 + 0.07 * 0.25; // share + fee per share
+  assert.ok(close(fill.shares, 10 / unit));
+  assert.ok(close(fill.usd, 10));
+  assert.ok(fill.feeUsd > 0);
 });
-test("invalid prices and amounts fail closed", () => {
-  assert.throws(() => simulateBuy([{ price: "NaN", size: "2" }], 1, 1));
-  assert.throws(() => simulateBuy([], -1, 1));
+
+test("a buy only fills what is offered within the price cap", () => {
+  const fill = simulateBuy([{ price: 0.5, size: 2 }, { price: 0.9, size: 100 }], 50, 0.6, null);
+  assert.ok(close(fill.shares, 2), "stops at the cap instead of paying 90¢");
+  assert.throws(() => simulateBuy([{ price: 0.9, size: 100 }], 10, 0.6, null), FillError);
+});
+
+test("a sell takes the best bids first, stops at the floor, and nets out fees", () => {
+  const bids = [{ price: 0.7, size: 5 }, { price: 0.6, size: 5 }, { price: 0.3, size: 100 }];
+  const fill = simulateSell(bids, 20, 0.55, crypto);
+  assert.ok(close(fill.shares, 10), "never sells below the 55¢ floor");
+  const gross = 5 * 0.7 + 5 * 0.6;
+  const fee = takerFee(5, 0.7, crypto) + takerFee(5, 0.6, crypto);
+  assert.ok(close(fill.usd, gross - fee));
+  assert.throws(() => simulateSell([{ price: 0.2, size: 10 }], 5, 0.5, null), FillError);
+});
+
+test("invalid inputs fail closed", () => {
+  assert.throws(() => simulateBuy([], -1, 0.5, null), FillError);
+  assert.throws(() => simulateBuy([], 10, 1, null), FillError);
+  assert.throws(() => simulateSell([], 0, 0.5, null), FillError);
 });

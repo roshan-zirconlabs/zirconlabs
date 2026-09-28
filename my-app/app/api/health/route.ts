@@ -1,12 +1,27 @@
 import { NextResponse } from "next/server";
-import { checkDatabase, checkDeploymentConfig } from "@/lib/deployment-health";
-import { probeAuthDatabase } from "@/lib/auth-database-probe";
+import { prisma } from "@/lib/prisma";
+import { liveTradingAvailable, managedWalletConfigured } from "@/lib/polymarket/managed-account";
+import { telegramConfigured } from "@/lib/telegram";
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export async function GET(request: Request) {
-  const { missing, issues, callbackUrl, keeperhubManaged, callbackOrigin } = checkDeploymentConfig(process.env, request.url);
-  const database = missing.includes("DATABASE_URL") ? { status: "unavailable", code: "DATABASE_URL_MISSING" } : await checkDatabase(probeAuthDatabase);
-  const managedWallets = Boolean(process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET);
-  const ok = missing.length === 0 && database.status === "ok" && !issues.some(i => i.code.startsWith("AUTH_") || i.code === "DATABASE_URL_INVALID" || i.code.startsWith("CALLBACK_ORIGIN_"));
-  return NextResponse.json({ status: ok ? "healthy" : "unavailable", missing, issues, database, auth: { callbackUrl }, capabilities: { managedWallets, keeperhubManaged, callbackOrigin, polymarketLive: managedWallets && process.env.POLYMARKET_LIVE_ENABLED === "true" && process.env.POLYMARKET_CLOB_V2_ADAPTER_READY === "true" }, checks: "Environment configuration and live auth database/schema query. Google consent and funded trading are separate checks." }, { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } });
+
+/** Names what's missing — never values. */
+export async function GET() {
+  const required = ["DATABASE_URL", "AUTH_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "CRON_SECRET"] as const;
+  const missing = required.filter((k) => !(k === "AUTH_SECRET" ? process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET : process.env[k])?.trim());
+  let database = "ok";
+  try {
+    await prisma.$queryRaw`SELECT 1 FROM "User" LIMIT 1`;
+  } catch {
+    database = "unavailable";
+  }
+  // The engine is healthy if it ran recently; automations have lastCheckedAt.
+  const lastRun = await prisma.automation.findFirst({ where: { lastCheckedAt: { not: null } }, orderBy: { lastCheckedAt: "desc" }, select: { lastCheckedAt: true } }).catch(() => null);
+  const ok = missing.length === 0 && database === "ok";
+  return NextResponse.json({
+    status: ok ? "healthy" : "unavailable", missing, database,
+    engineLastRunAt: lastRun?.lastCheckedAt?.toISOString() ?? null,
+    capabilities: { liveWallets: managedWalletConfigured(), liveTrading: liveTradingAvailable(), telegram: telegramConfigured() },
+  }, { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } });
 }

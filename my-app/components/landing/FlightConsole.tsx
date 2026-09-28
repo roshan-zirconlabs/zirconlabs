@@ -22,11 +22,11 @@ const LINE = PRICES.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p).toF
 const AREA = `${LINE} L${W},${H} L0,${H} Z`;
 
 const EVENTS = [
-  { icon: Radio, time: "14:02:11", title: "Signal received", detail: "TradingView · RSI crossed under 30" },
-  { icon: ShieldCheck, time: "14:02:11", title: "Guards passed", detail: "1 of 1 window slot · ceiling 0.63" },
-  { icon: Target, time: "14:02:13", title: "Order filled", detail: "120 shares of YES at 0.61" },
-  { icon: Activity, time: "14:09:40", title: "Holding", detail: "Mark 0.70 · exit rule armed" },
-  { icon: Trophy, time: "14:17:00", title: "Window settled", detail: "Closed at 0.76 · +$18.00" },
+  { icon: Radio, time: "09:02:11", title: "Entry triggered", detail: "YES dropped to your 61¢ level" },
+  { icon: Target, time: "09:02:12", title: "Bought", detail: "120 shares of YES at 61¢ · fee $0.33" },
+  { icon: ShieldCheck, time: "09:02:12", title: "Protection armed", detail: "Take profit 76¢ · stop loss 52¢" },
+  { icon: Activity, time: "14:09:40", title: "Watching", detail: "Price 70¢ · you were asleep" },
+  { icon: Trophy, time: "16:17:00", title: "Take-profit hit", detail: "Sold at 76¢ · +$17.67 · Telegram sent" },
 ];
 
 export default function FlightConsole() {
@@ -51,12 +51,12 @@ export default function FlightConsole() {
         <div className="flex items-center gap-3">
           <span className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#e0619f] to-[#5b3fc4] text-sm font-semibold">O</span>
           <div>
-            <p className="text-[15px] font-semibold">Orion-7</p>
-            <p className="c-mono text-xs text-[var(--c-faint)]">BTC up or down · 15-minute window</p>
+            <p className="text-[15px] font-semibold">Fed cuts rates in December?</p>
+            <p className="c-mono text-xs text-[var(--c-faint)]">Buy at 61¢ · protected position</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="c-mono rounded-full border border-white/15 px-2.5 py-1 text-[11px] uppercase tracking-wider text-[var(--c-dim)]">Paper</span>
+          <span className="c-mono rounded-full border border-white/15 px-2.5 py-1 text-[11px] uppercase tracking-wider text-[var(--c-dim)]">Practice</span>
           <span className="flex items-center gap-2 rounded-full bg-[rgba(224,97,159,0.14)] px-3 py-1 text-xs font-medium text-[var(--c-pink)]">
             <span className="c-pulse h-1.5 w-1.5 rounded-full bg-[var(--c-pink)]" />
             In flight
@@ -75,7 +75,7 @@ export default function FlightConsole() {
             </div>
             <p className="c-mono text-sm text-[#8ee6b8]">+{(24.6 * progress).toFixed(1)}%</p>
           </div>
-          <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full overflow-visible" role="img" aria-label="Simulated price chart: YES dips to 0.58, the bot buys at 0.61, and the window settles at 0.76">
+          <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full overflow-visible" role="img" aria-label="Example price chart: YES dips to 58¢, Zircon buys at 61¢, and the take-profit sells at 76¢">
             <defs>
               <linearGradient id="fc-area" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%" stopColor="#e0619f" stopOpacity="0.35" />

@@ -1,30 +1,30 @@
-# Zircon Labs — web application
+# Zircon — web app
 
-The deployable Zircon Labs app: Next.js 16 (App Router), Prisma 7 on Postgres,
-NextAuth v5 with Google, and hosted KeeperHub for workflow execution.
+Next.js 16 (App Router), Prisma 7 on Postgres, NextAuth v5 (Google).
 
 ```bash
 yarn install          # also runs prisma generate
-cp .env.example .env  # fill in; every variable is documented inline
+cp .env.example .env  # practice mode needs sections 1–4
 yarn db:migrate
-yarn dev
+yarn dev              # app on http://localhost:3000
+yarn worker           # automation engine, in a second terminal
 ```
 
 | Command | Purpose |
 | --- | --- |
 | `yarn test` | Unit tests (`lib/**/*.test.ts`) |
-| `yarn lint` | ESLint |
-| `yarn build` | Production build |
-| `yarn check:deployment` | Validate environment and database, same checks as `/api/health` |
+| `yarn lint` / `yarn build` | ESLint / production build |
+| `yarn worker` | Always-on automation engine (every 5s) |
+| `yarn tick` | Run one engine pass and print what it did |
+| `yarn telegram:setup` | Point the Telegram bot at this deployment |
 
 Layout:
 
-- `app/` — pages and API routes (`api/workflow/*` are KeeperHub callbacks)
-- `components/` — UI, including the visual workflow editor in `components/workflow`
-- `lib/workflow/` — strategy spec, workflow compiler, candles, callback tokens
-- `lib/polymarket/` — Deposit Wallet client, cash-out, spend reservation
-- `lib/track-record.ts`, `lib/attestation.ts` — public verifiable track records
-- `scripts/mint-builder-key.ts` — one-time Polymarket builder key for live trading
+- `app/` — pages (`dashboard`, `markets`, `automations`, `account`) and API routes
+- `lib/trading/execute.ts` — the single order path (practice and live)
+- `lib/automations/` — automation settings (`config.ts`) and trigger rules (`evaluate.ts`)
+- `lib/engine/tick.ts` — the automation engine
+- `lib/polymarket/` — market data, prices, positions, Deposit Wallet client, withdrawals
+- `lib/paper-fill.ts` — practice fills against the real book with real fees
 
-See the root [README](../README.md) for how the system works and
-[DEPLOYMENT.md](../DEPLOYMENT.md) for production setup.
+See [DEPLOYMENT.md](../DEPLOYMENT.md) for production setup.

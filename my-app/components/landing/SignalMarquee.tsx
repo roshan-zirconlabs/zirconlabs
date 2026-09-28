@@ -1,12 +1,13 @@
 const ITEMS = [
-  "Crypto 15-minute windows",
-  "Hourly and daily markets",
+  "Every Polymarket market",
+  "Stop-loss",
+  "Take-profit",
+  "Trailing stops",
+  "Buy at your price",
   "TradingView alerts",
-  "RSI · MACD · EMA crossovers",
-  "Visual node editor",
-  "Paper trading on live books",
-  "Backtests on real history",
-  "Self-custody Deposit Wallet",
+  "Practice on real order books",
+  "Winnings claimed automatically",
+  "Telegram alerts",
 ];
 
 function Row({ hidden }: { hidden?: boolean }) {

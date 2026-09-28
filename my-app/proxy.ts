@@ -6,7 +6,7 @@ export function proxy(req: NextRequest) {
     req.cookies.get("authjs.session-token")?.value ||
     req.cookies.get("__Secure-authjs.session-token")?.value;
 
-  const protectedPaths = ["/dashboard", "/billing", "/bots"];
+  const protectedPaths = ["/dashboard", "/automations", "/account"];
   const isProtected = protectedPaths.some((path) =>
     req.nextUrl.pathname.startsWith(path),
   );

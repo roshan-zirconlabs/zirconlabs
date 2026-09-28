@@ -4,17 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
-import { CreditCard, LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, Settings, X } from "lucide-react";
+import ModeSwitch from "@/components/app/mode-switch";
 import { OrbitMark } from "@/components/brand/OrbitMark";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/bots", label: "Bots" },
-  { href: "/strategies", label: "Strategies" },
+  { href: "/dashboard", label: "Portfolio" },
   { href: "/markets", label: "Markets" },
-  { href: "/backtest", label: "Backtest" },
-  { href: "/wallet", label: "Wallet" },
-  { href: "/connections", label: "Connections" },
+  { href: "/automations", label: "Automations" },
+  { href: "/account", label: "Account" },
 ];
 
 function AccountMenu({ name, image }: { name: string; image?: string | null }) {
@@ -57,11 +55,11 @@ function AccountMenu({ name, image }: { name: string; image?: string | null }) {
           <p className="truncate px-3 py-2 text-sm text-[var(--c-dim)]">{name}</p>
           <Link
             role="menuitem"
-            href="/billing"
+            href="/account"
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm hover:bg-white/5"
           >
-            <CreditCard className="h-4 w-4 text-[var(--c-dim)]" /> Plan &amp; billing
+            <Settings className="h-4 w-4 text-[var(--c-dim)]" /> Account &amp; wallet
           </Link>
           <button
             role="menuitem"
@@ -113,6 +111,7 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-1.5">
+          {signedIn && <ModeSwitch className="hidden sm:flex" />}
           {signedIn ? (
             <AccountMenu name={session.user.name || session.user.email || "Account"} image={session.user.image} />
           ) : status !== "loading" ? (
@@ -137,6 +136,7 @@ export default function Header() {
 
       {open && (
         <nav id="mobile-navigation" aria-label="Mobile navigation" className="c-panel c-fade-in mx-auto mt-2 grid max-w-7xl grid-cols-2 gap-1 bg-[rgba(10,12,36,0.96)] p-2 lg:hidden">
+          {signedIn && <ModeSwitch className="col-span-2 mb-1 sm:hidden [&>button]:flex-1" />}
           {NAV.map((n) => (
             <Link
               key={n.href}

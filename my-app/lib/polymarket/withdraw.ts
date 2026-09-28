@@ -9,7 +9,8 @@ import { getAddress, isAddress, parseUnits } from "viem";
  * amount that cannot be represented exactly is refused rather than adjusted.
  */
 
-export const COLLATERAL_DECIMALS = 6;
+export { COLLATERAL_DECIMALS } from "./account-readiness";
+import { COLLATERAL_DECIMALS } from "./account-readiness";
 
 export class WithdrawError extends Error {
   constructor(message: string, public status = 400) {

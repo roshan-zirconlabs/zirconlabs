@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCalmMotion } from "./motion";
-import { ChartLine, FlaskConical, Radio, Satellite, Wallet, Workflow } from "lucide-react";
+import { Bell, Crosshair, Radio, Satellite, ShieldCheck, Wallet } from "lucide-react";
 
 const TILT = (-14 * Math.PI) / 180;
 const ORBITS = [
@@ -14,52 +14,52 @@ const ORBITS = [
 
 const FEATURES = [
   {
-    name: "Signals",
-    icon: Radio,
+    name: "Protection",
+    icon: ShieldCheck,
     orbit: 0, phase: 0.3, speed: 0.32, size: 34,
     surface: "radial-gradient(circle at 32% 28%, #ffe2d6, #ef8a66 45%, #6d2a2a 100%)",
-    title: "Signals that never sleep",
-    body: "TradingView webhooks, indicator rules and price thresholds feed your bot the moment they fire — no tab left open, no alarm clock.",
+    title: "Exits that never sleep",
+    body: "Take-profit, stop-loss, trailing stops and a sell-before-close timer on any position. Zircon watches and sells for you — no tab left open.",
   },
   {
-    name: "Node editor",
-    icon: Workflow,
+    name: "Entries",
+    icon: Crosshair,
     orbit: 0, phase: 3.4, speed: 0.32, size: 28,
     surface: "radial-gradient(circle at 32% 28%, #e3f7ff, #6fb6f0 45%, #1d3a7a 100%)",
-    title: "Logic you can see",
-    body: "Triggers, conditions, sizing and exits are connected nodes on a canvas. Change a rule by moving a wire, not rewriting a script.",
+    title: "Buy at your price",
+    body: "Tell Zircon the price you want and how much to spend. It buys the moment the market gets there — and can protect the position straight away.",
   },
   {
-    name: "Backtests",
-    icon: FlaskConical,
+    name: "TradingView",
+    icon: Radio,
     orbit: 1, phase: 1.2, speed: 0.22, size: 44, ring: true,
     surface: "radial-gradient(circle at 32% 28%, #f1e6ff, #9d7cf2 45%, #2d1d6b 100%)",
-    title: "Rehearse on real history",
-    body: "Replay a strategy across past Polymarket windows and see its win rate and drawdown before a single dollar is at risk.",
+    title: "Your alerts, executed",
+    body: "Point a TradingView strategy alert at a market. Buy alerts buy, sell alerts close — sized and price-capped by settings only you control.",
   },
   {
-    name: "Paper orbit",
+    name: "Practice",
     icon: Satellite,
     orbit: 1, phase: 4.3, speed: 0.22, size: 30,
     surface: "radial-gradient(circle at 32% 28%, #dffff4, #4fc7a4 45%, #0f4a45 100%)",
     title: "Practice against live books",
-    body: "Paper mode fills against the real order book with simulated money, so your paper results behave like the real thing.",
+    body: "$1,000 of practice money fills against the real order book with real fees, so practice results behave like the real thing.",
   },
   {
-    name: "Deposit Wallet",
+    name: "Wallet",
     icon: Wallet,
     orbit: 2, phase: 2.2, speed: 0.15, size: 50,
     surface: "radial-gradient(circle at 32% 28%, #fff1d6, #e8ac4e 40%, #b0602e 70%, #4a2418 100%)",
-    title: "Your funds, your wallet",
-    body: "Capital sits in a Deposit Wallet you control — not ours. Sell a position or withdraw to your own address whenever you like.",
+    title: "A wallet made for you",
+    body: "A dedicated Polymarket trading wallet with no gas fees. Deposit from any major chain; withdraw to your own address whenever you like.",
   },
   {
-    name: "Analytics",
-    icon: ChartLine,
+    name: "Alerts",
+    icon: Bell,
     orbit: 2, phase: 5.3, speed: 0.15, size: 38,
     surface: "radial-gradient(circle at 32% 28%, #ffe0ef, #e0619f 45%, #521a44 100%)",
-    title: "Every fill, accounted for",
-    body: "P&L curves, win rates and a full trade history for each bot, split cleanly between paper and live.",
+    title: "Every move, accounted for",
+    body: "Every trade, trigger and payout lands in your activity log — and on Telegram if you like. Winnings are claimed for you automatically.",
   },
 ];
 
@@ -131,7 +131,7 @@ export default function OrbitalSystem() {
       <div className="mx-auto max-w-2xl text-center">
         <p className="c-mono text-xs uppercase tracking-[0.3em] text-[var(--c-pink)]">The system</p>
         <h2 className="c-serif mt-5 text-5xl leading-[1] sm:text-7xl">
-          Everything orbits <em className="c-nebula-text">your strategy.</em>
+          Everything orbits <em className="c-nebula-text">your position.</em>
         </h2>
       </div>
 
@@ -159,7 +159,7 @@ export default function OrbitalSystem() {
           <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2" aria-hidden="true">
             <div className="h-24 w-24 rounded-full bg-[radial-gradient(circle,#fff_0%,#ffe6f3_22%,#f08bbd_48%,rgba(146,119,245,0.5)_70%,transparent_72%)] shadow-[0_0_80px_30px_rgba(224,97,159,0.45),0_0_200px_80px_rgba(146,119,245,0.3)] sm:h-32 sm:w-32" />
             <p className="c-mono absolute left-1/2 top-full mt-3 -translate-x-1/2 whitespace-nowrap text-[11px] uppercase tracking-[0.2em] text-[var(--c-dim)]">
-              Your strategy
+              Your position
             </p>
           </div>
 

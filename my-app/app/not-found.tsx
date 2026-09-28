@@ -13,7 +13,7 @@ export default function NotFound() {
               Home
             </Link>
             <Link href="/dashboard" className="c-btn-primary">
-              Mission control
+              Portfolio
             </Link>
           </div>
         }

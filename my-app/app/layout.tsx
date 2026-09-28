@@ -17,7 +17,7 @@ const instrument = Instrument_Serif({
   display: "swap",
 });
 
-const description = "Turn a chart signal into a guarded, traceable Polymarket trading bot. Built on KeeperHub.";
+const description = "Stop-loss, take-profit, trailing stops and TradingView alerts for Polymarket — practice free, then trade live with a safety net.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.zirconlabs.org"),

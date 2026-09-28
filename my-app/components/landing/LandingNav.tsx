@@ -59,8 +59,8 @@ export default function LandingNav() {
               Sign in
             </Link>
           )}
-          <Link href={signedIn ? "/dashboard" : "/auth/sign-up"} className="c-btn-primary !min-h-10 !px-4 !text-sm">
-            {signedIn ? "Open console" : "Launch a bot"}
+          <Link href={signedIn ? "/dashboard" : "/auth/sign-in"} className="c-btn-primary !min-h-10 !px-4 !text-sm">
+            {signedIn ? "Open app" : "Start practicing"}
             <ArrowRight className="h-4 w-4" />
           </Link>
           <button

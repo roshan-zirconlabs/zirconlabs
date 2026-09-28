@@ -2,35 +2,35 @@
 
 import { useRef } from "react";
 import { motion, useInView, useScroll, useSpring } from "framer-motion";
-import { FlaskConical, Radio, Rocket, Workflow } from "lucide-react";
+import { FlaskConical, Rocket, Search, ShieldCheck } from "lucide-react";
 
 const STEPS = [
   {
     code: "T–3",
-    icon: Radio,
-    title: "Chart the signal",
-    body: "Choose what wakes your bot up: a TradingView alert, an indicator crossing, or a price threshold on any Polymarket window.",
-    tag: "Webhooks · RSI · MACD · EMA",
+    icon: Search,
+    title: "Pick a market",
+    body: "Search any open Polymarket market — elections, sports, crypto, the Fed. See live prices, the fee, and exactly what a share pays.",
+    tag: "Every Polymarket market",
   },
   {
     code: "T–2",
-    icon: Workflow,
-    title: "Plot the trajectory",
-    body: "Wire entries, sizing and exits together on a visual canvas. Every decision is a node you can see — no code, no contracts.",
-    tag: "Node editor",
+    icon: ShieldCheck,
+    title: "Set your safety net",
+    body: "Buy with a take-profit and stop-loss attached, add a trailing stop, or tell Zircon to buy only when the price reaches your level.",
+    tag: "Take-profit · Stop-loss · Trailing · Entries",
   },
   {
     code: "T–1",
     icon: FlaskConical,
-    title: "Dry-run in paper orbit",
-    body: "Replay the strategy on real history, then let it trade live order books with simulated money until the numbers earn your trust.",
-    tag: "Backtest · Paper mode",
+    title: "Practice first",
+    body: "Start with $1,000 of practice money on real order books with real fees. Every fill, exit and payout behaves like the real thing.",
+    tag: "Practice mode",
   },
   {
     code: "T–0",
     icon: Rocket,
     title: "Ignition",
-    body: "Flip one switch to go live. Orders route through your own Deposit Wallet with a price ceiling on every fill.",
+    body: "Deposit from any major chain and flip one switch to go live. Every order has a price limit, a daily cap, and a kill switch behind it.",
     tag: "Live on Polymarket",
   },
 ];
@@ -84,7 +84,7 @@ export default function MissionSequence() {
         <div className="mx-auto max-w-2xl text-center">
           <p className="c-mono text-xs uppercase tracking-[0.3em] text-[var(--c-pink)]">Mission sequence</p>
           <h2 className="c-serif mt-5 text-5xl leading-[1] sm:text-7xl">
-            From signal to settlement in <em className="c-nebula-text">four burns.</em>
+            From idea to protected trade in <em className="c-nebula-text">four steps.</em>
           </h2>
           <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-[var(--c-dim)]">
             No web3 experience needed. If you can describe a trade, you can launch it.

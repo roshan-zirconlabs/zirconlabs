@@ -1,100 +1,45 @@
-# Zircon Labs
+# Zircon
 
-Zircon Labs turns a trading signal into a guarded, traceable Polymarket bot, with
-KeeperHub as the execution layer. Pick a rule — or point a TradingView alert at
-your bot — and Zircon compiles it into a real KeeperHub workflow that trades the
-live BTC/ETH up-or-down markets every window. Nobody handles a private key, a
-gas token or a workflow engine.
+**Stop-loss, take-profit and automation for Polymarket.**
 
-Live at [zirconlabs.org](https://www.zirconlabs.org).
+Polymarket's order book only has market and limit orders. Zircon adds the
+risk tools traders expect everywhere else, and watches the market for you:
+
+- **Protect a position** — take-profit, stop-loss, trailing stop, and "sell N
+  hours before the market closes", on any Polymarket market.
+- **Buy at your price** — buy when a price drops to (or rises to) your level,
+  and attach protection to the new position automatically.
+- **TradingView alerts** — a per-market webhook: `buy` alerts buy, `sell`/`close`
+  alerts sell. Size and price limits come from your saved settings, never the alert.
+- **Practice first** — $1,000 of practice money that fills against the real
+  order book with each market's real taker fee, and settles like the real thing.
+- **Live with guard rails** — a gasless Polymarket trading wallet per user,
+  deposits from any major chain, a daily spend limit, a kill switch, automatic
+  claiming of winnings, and Telegram alerts.
 
 ## How it works
 
-```text
-Browser → Zircon (Next.js on Vercel) → Postgres (Supabase)
-             │
-             ├── compiles each bot into a KeeperHub workflow
-             │     schedule:  Schedule → [check balance] → HTTP signal → Condition → HTTP execute
-             │     webhook:   TradingView alert → [check balance] → HTTP execute
-             │
-             └── KeeperHub runs it and calls back, per bot:
-                   POST /api/workflow/signal    which market is open, which direction
-                   POST /api/workflow/execute   practice fill, or a signed live order
-                                │
-                                └── Polymarket CLOB, from the owner's own
-                                    Deposit Wallet (Privy key, gasless relayer)
+```
+ Browser ──► Next.js app (my-app) ──► Postgres
+                 │   ▲
+                 │   └── automation engine: yarn worker (every 5s)
+                 │                        or GET /api/cron/tick (every minute)
+                 ▼
+   Polymarket — Gamma (markets), CLOB (books, orders), Data API (positions),
+                Bridge (deposits), relayer (gasless Deposit Wallets)
+   Privy — holds each user's signing key
 ```
 
-- **KeeperHub orchestrates; it never holds user money.** Workflows carry no keys.
-  Live bots verify collateral on-chain through KeeperHub's
-  `web3/check-token-balance` before any order.
-- **Every callback is scoped to one bot.** Each workflow carries a token derived
-  from the server secret that authorises exactly that bot.
-- **The market is resolved server-side.** A TradingView alert supplies only a
-  direction; Zircon picks the open market and the per-window request id, so a
-  leaked webhook URL can at most place one capped order per window.
+- **One order path.** Manual trades, automations and alerts all go through
+  `lib/trading/execute.ts`. An order row is written, keyed by an idempotency key,
+  *before* anything is sent — a retry finds the row instead of trading twice.
+  Live orders are fill-and-kill with a price limit and are never retried; if we
+  can't confirm one reached Polymarket it is recorded `UNKNOWN` for review.
+- **Two books that never mix.** Practice positions live in our database; live
+  positions are always read from Polymarket.
+- **The engine** (`lib/engine/tick.ts`) prices every active automation in one
+  batch, leases each one before it acts (so several engines can run at once),
+  settles practice positions on resolved markets, claims live winnings,
+  reconciles queued orders, and sends alerts.
 
-## Verifiable track records
-
-A bot owner can publish a strategy once at least one of its trades has
-resolved. Published strategies appear at `/strategies`, and each has a public
-record at:
-
-```text
-GET /api/strategies/{workflowId}/track-record
-```
-
-The record is computed only from **KeeperHub execution records** and
-**Polymarket's on-chain resolution** — never from Zircon's database — and every
-settled trade carries its KeeperHub execution id and on-chain `conditionId`, so
-anyone (or any agent) can recompute it. Open positions are withheld; the live
-signal is what a subscription buys. Publishing also anchors the strategy with a
-transaction executed through KeeperHub (Ethereum Sepolia), linked on the page.
-
-## Guardrails on a live bot
-
-- One order per bot per market window, enforced by a deterministic request id.
-- The order step never auto-retries; an uncertain submission stays `UNKNOWN`.
-- The rule is re-evaluated server-side before ordering; if the market rotated
-  or the signal changed, nothing executes.
-- A per-user daily spend limit, reserved under a Postgres advisory lock before
-  signing, plus a per-share price cap and the market's minimum order size.
-- Real money stays off until the operator enables it **and** the user turns it
-  on for their own account.
-
-## Repository
-
-| Path | What it is |
-| --- | --- |
-| `my-app/` | The Next.js application — UI, API routes, workflow compiler, Prisma schema |
-| `my-app/lib/workflow/` | Strategy spec, workflow compiler, candle providers, callback tokens |
-| `my-app/lib/track-record.ts` | Verifiable track-record engine |
-| `my-app/lib/polymarket/` | Deposit Wallet client, cash-out, spend reservation |
-| `DEPLOYMENT.md` | Production setup and the live-trading checklist |
-
-The KeeperHub-side Polymarket plugin (market status, live odds, market
-resolution, signal evaluation, paper orders) lives on
-[`roshan-zirconlabs/keeperhub`](https://github.com/roshan-zirconlabs/keeperhub/tree/feat/polymarket-verifiable-resolution).
-
-## Local development
-
-Requires Node 24+ and Yarn 1.
-
-```bash
-cd my-app
-yarn install
-cp .env.example .env     # fill it in — every variable is documented inline
-yarn db:migrate
-yarn dev
-```
-
-`AUTH_URL` must match the origin you browse to (`http://localhost:3000`
-locally), or Google sign-in fails and `/api/health` reports
-`AUTH_ORIGIN_MISMATCH`. Scheduled bots need a public `ZLABS_PUBLIC_URL`;
-KeeperHub cannot call back to `localhost`.
-
-Before shipping:
-
-```bash
-yarn tsc --noEmit && yarn lint && yarn test && yarn build
-```
+See [DEPLOYMENT.md](DEPLOYMENT.md) to run it and [TODO.md](TODO.md) for what's next.
