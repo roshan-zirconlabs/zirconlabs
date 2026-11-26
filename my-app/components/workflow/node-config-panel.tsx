@@ -5,7 +5,6 @@ import { Activity, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Button from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { useHostedCatalog } from "./hosted-catalog";
 import {
   activeMarketSlug,
   bitstampPair,
@@ -27,7 +26,6 @@ import {
 } from "./registry";
 
 export default function NodeConfigPanel() {
-  const catalog = useHostedCatalog();
   const [nodes, setNodes] = useAtom(nodesAtom);
   const [edges, setEdges] = useAtom(edgesAtom);
   const [selectedId, setSelectedId] = useAtom(selectedNodeIdAtom);
@@ -167,11 +165,8 @@ export default function NodeConfigPanel() {
   } else {
     const it = selected.data.config?.integrationType as string | undefined;
     const at = selected.data.config?.actionType as string | undefined;
-    // Zircon's native blocks (Polymarket, logic) own their fields; otherwise
-    // fall back to the matching hosted-catalog action.
-    const def =
-      (it && at ? findActionByConfig(it, at) : undefined) ??
-      catalog.data?.find((a) => a.actionType === at);
+    // Only PolyTrade's own blocks exist; each owns its fields.
+    const def = it && at ? findActionByConfig(it, at) : undefined;
     fields = def?.fields ?? [];
     typeLabel = def?.label ?? at ?? "Action";
   }

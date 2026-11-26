@@ -165,7 +165,7 @@ function CanvasInner() {
   );
 
   return (
-    <div className="zircon-flow relative h-full w-full bg-[rgba(5,7,26,0.55)]">
+    <div className="pt-flow relative h-full w-full bg-[rgba(5,7,26,0.55)]">
       <ReactFlow
         nodes={decoratedNodes}
         edges={edges}

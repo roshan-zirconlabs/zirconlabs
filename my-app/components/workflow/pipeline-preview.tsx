@@ -13,10 +13,9 @@ type Spec = {
 type Step = { icon: typeof Clock; label: string; desc: string; tone: "neutral" | "live" | "paper" };
 
 /**
- * Mirrors lib/workflow/compile.ts's node shape so this always matches what
- * actually gets published to KeeperHub — a schedule/webhook trigger, an
- * optional on-chain balance check, the rule (dropped for webhook-sourced
- * bots, since the alert already decided), and the order step.
+ * Mirrors what the runner does for this strategy (lib/runner): a schedule or
+ * alert trigger, the rule (skipped for alert bots, since the alert already
+ * decided), a balance check before real orders, and the order step.
  */
 function pipelineSteps(spec: Spec): Step[] {
   const steps: Step[] = [];
@@ -25,13 +24,13 @@ function pipelineSteps(spec: Spec): Step[] {
       ? { icon: Webhook, label: "Alert arrives", desc: "From TradingView", tone: "neutral" }
       : { icon: Clock, label: "Schedule fires", desc: spec.timeframe, tone: "neutral" },
   );
-  if (spec.mode === "live") {
-    steps.push({ icon: Wallet, label: "Check balance", desc: "On-chain, via KeeperHub", tone: "live" });
-  }
   if (spec.source !== "webhook") {
     const rule = RULES.find(r => r.id === spec.rule);
     steps.push({ icon: Search, label: "Read signal", desc: rule?.label ?? spec.rule, tone: "neutral" });
     steps.push({ icon: GitBranch, label: "Tradable?", desc: "Only continues if yes", tone: "neutral" });
+  }
+  if (spec.mode === "live") {
+    steps.push({ icon: Wallet, label: "Check balance", desc: "On-chain, before every order", tone: "live" });
   }
   steps.push({
     icon: Send,

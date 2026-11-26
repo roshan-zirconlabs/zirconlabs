@@ -116,7 +116,7 @@ export default function BotsPage() {
               </dl>
 
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5">
-                <ActivationControl botId={b.id} status={b.status} workflowId={b.keeperhubWorkflowId} compact onChanged={(next) => patchBot(b.id, next)} />
+                <ActivationControl botId={b.id} status={b.status} compact onChanged={(next) => patchBot(b.id, next)} />
                 <div className="flex items-center gap-1">
                   <Link href={`/bots/${b.id}/edit`} className="c-btn-ghost c-btn-sm" title="Open visual editor">
                     <SlidersHorizontal className="h-4 w-4" /> Edit

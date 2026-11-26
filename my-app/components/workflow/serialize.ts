@@ -1,10 +1,10 @@
 /**
- * Serializes our editor's `{ nodes, edges }` into the JSON shape KeeperHub
- * persists. We strip xyflow UI state and keep only what KH expects.
+ * Serializes the editor's `{ nodes, edges }` into the shape a bot stores.
+ * xyflow UI state is stripped; only node identity, type and config remain.
  */
 import type { WorkflowEdge, WorkflowNode } from "./types";
 
-export function toKeeperhubGraph(
+export function toSavedGraph(
   nodes: WorkflowNode[],
   edges: WorkflowEdge[],
 ): {
@@ -42,7 +42,7 @@ export function toKeeperhubGraph(
   };
 }
 
-export function fromKeeperhubGraph(
+export function fromSavedGraph(
   rawNodes: unknown,
   rawEdges: unknown,
 ): { nodes: WorkflowNode[]; edges: WorkflowEdge[] } {
@@ -84,7 +84,7 @@ export function fromKeeperhubGraph(
     : [];
 
   // Drop unconfigured action nodes (KH seeds an empty action by default).
-  // Built-in KeeperHub actions carry only an actionType, so that alone counts.
+  // Built-in actions carry only an actionType, so that alone counts.
   const drop = new Set<string>();
   const nodes = decoded.filter((n) => {
     if (n.type !== "action") return true;

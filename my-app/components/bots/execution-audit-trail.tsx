@@ -164,7 +164,7 @@ export default function ExecutionAuditTrail({ botId }: { botId: string }) {
           <>
             {runsWarning && <p className="border-b border-white/10 bg-amber-50 px-5 py-2.5 text-xs text-amber-800">{runsWarning}</p>}
             {runs.length === 0 ? (
-              <p className="px-6 py-14 text-center text-sm text-[var(--c-dim)]">No KeeperHub runs recorded yet.</p>
+              <p className="px-6 py-14 text-center text-sm text-[var(--c-dim)]">No runs recorded yet.</p>
             ) : (
               <ul>
                 {runs.map((r, i) => (

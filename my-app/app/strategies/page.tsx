@@ -6,9 +6,9 @@ export const dynamic = "force-dynamic";
 
 export default async function StrategiesPage() {
   const listed = await prisma.bot.findMany({
-    where: { listedAt: { not: null }, keeperhubWorkflowId: { not: null } },
+    where: { listedAt: { not: null } },
     orderBy: { listedAt: "desc" },
-    select: { name: true, keeperhubWorkflowId: true },
+    select: { id: true, name: true },
     take: 60,
   });
 
@@ -16,8 +16,8 @@ export default async function StrategiesPage() {
     <PageShell>
       <h1 className="c-serif text-[clamp(2rem,4vw,3rem)] leading-none text-white">Strategy feed</h1>
       <p className="mt-3 max-w-2xl text-[var(--c-dim)]">
-        Published Polymarket strategies with a verifiable track record. Every win rate is recomputable from KeeperHub
-        runs and on-chain resolution, and every record says whether it comes from real orders or simulated practice
+        Published Polymarket strategies with a verifiable track record. Every win rate is recomputed from the bot&rsquo;s
+        run log and Polymarket&rsquo;s on-chain resolution, and every record says whether it comes from real orders or simulated practice
         fills.
       </p>
 
@@ -26,7 +26,7 @@ export default async function StrategiesPage() {
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {listed.map(
-            (b) => b.keeperhubWorkflowId && <StrategyFeedItem key={b.keeperhubWorkflowId} name={b.name} workflowId={b.keeperhubWorkflowId} />,
+            (b) => <StrategyFeedItem key={b.id} name={b.name} workflowId={b.id} />,
           )}
         </div>
       )}

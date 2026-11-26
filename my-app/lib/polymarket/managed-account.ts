@@ -64,7 +64,5 @@ export function liveExecutionConfigured() {
     process.env.POLYMARKET_BUILDER_SECRET?.trim() &&
     process.env.POLYMARKET_BUILDER_PASSPHRASE?.trim(),
   );
-  return managedWalletConfigured() && builder
-    && process.env.POLYMARKET_CLOB_V2_ADAPTER_READY === "true"
-    && process.env.POLYMARKET_LIVE_ENABLED === "true";
+  return managedWalletConfigured() && builder && process.env.POLYMARKET_LIVE_ENABLED === "true";
 }

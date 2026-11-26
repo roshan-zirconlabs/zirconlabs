@@ -8,8 +8,6 @@ export type BotSummary = {
   id: string;
   name: string;
   status: string;
-  keeperhubWorkflowId: string | null;
-  editorUrl: string | null;
   webhookUrl: string | null;
   strategy: { mode?: "paper" | "live"; source?: "schedule" | "webhook"; asset?: string; timeframe?: string } | null;
   createdAt: string;
@@ -23,7 +21,7 @@ export function describeBot(bot: BotSummary) {
   return [s.asset, s.timeframe, s.source === "webhook" ? "TradingView alert" : "Scheduled"].filter(Boolean).join(" · ");
 }
 
-export type BotPatch = Partial<Pick<BotSummary, "status" | "keeperhubWorkflowId" | "editorUrl" | "webhookUrl">>;
+export type BotPatch = Partial<Pick<BotSummary, "status" | "webhookUrl">>;
 
 export function useBots() {
   const { status } = useSession();

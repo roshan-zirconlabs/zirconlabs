@@ -7,7 +7,6 @@ import {
   Activity,
   ArrowRight,
   Bot,
-  Cable,
   Check,
   ChartLine,
   FlaskConical,
@@ -27,7 +26,6 @@ const SHORTCUTS = [
   { href: "/backtest", label: "Backtest a strategy", icon: FlaskConical },
   { href: "/markets/graphs", label: "Market charts", icon: ChartLine },
   { href: "/strategies", label: "Strategy feed", icon: Telescope },
-  { href: "/connections", label: "Connections", icon: Cable },
 ];
 
 function ProgressRing({ done, total }: { done: number; total: number }) {
@@ -121,7 +119,7 @@ export default function DashboardPage() {
 
       <section aria-label="Overview" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatTile label="Bots" icon={Bot} value={loading ? "—" : bots.length} hint={loading ? " " : `${running} running now`} />
-        <StatTile label="Running" icon={Activity} tone="accent" value={loading ? "—" : running} hint="Published on KeeperHub" />
+        <StatTile label="Running" icon={Activity} tone="accent" value={loading ? "—" : running} hint="On schedule or alerts" />
         <StatTile label="Trades recorded" icon={ChartLine} value={loading ? "—" : trades.toLocaleString()} hint="Practice and live" />
         <StatTile
           label="Wallet balance"
@@ -198,7 +196,7 @@ export default function DashboardPage() {
                     <ActivationControl
                       botId={b.id}
                       status={b.status}
-                      workflowId={b.keeperhubWorkflowId}
+                     
                       compact
                       onChanged={(next) => patchBot(b.id, next)}
                     />

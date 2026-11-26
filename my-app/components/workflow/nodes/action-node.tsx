@@ -15,7 +15,7 @@ export const ActionNode = memo(function ActionNode({
   if (!data) return null;
   const actionType = data.config?.actionType as string | undefined;
   const title = data.label || actionType || "Choose action";
-  const description = data.description || (actionType ? `KeeperHub · ${actionType}` : "Click to configure");
+  const description = data.description || (actionType ? actionType : "Click to configure");
   const isUnconfigured = !actionType;
 
   return (

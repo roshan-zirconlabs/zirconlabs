@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { keeperhub } from "@/lib/keeperhub";
-
-function decorateBot<T extends { keeperhubWorkflowId: string | null }>(b: T) {
-  return {
-    ...b,
-    editorUrl: b.keeperhubWorkflowId
-      ? keeperhub.editorUrl(b.keeperhubWorkflowId)
-      : null,
-    webhookUrl: b.keeperhubWorkflowId
-      ? keeperhub.webhookUrl(b.keeperhubWorkflowId)
-      : null,
-  };
-}
+import { MAX_BOTS_PER_USER } from "@/lib/billing/plans";
 
 function isMissingSchemaColumn(err: unknown): boolean {
   return typeof err === "object" && err !== null && "code" in err && err.code === "P2022";
@@ -37,7 +25,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ bots: bots.map(decorateBot) });
+    return NextResponse.json({ bots });
   } catch (err: unknown) {
     console.error("GET /api/bots error:", err);
     if (isMissingSchemaColumn(err)) {
@@ -69,36 +57,18 @@ export async function POST(req: NextRequest) {
       update: {},
     });
 
-    const [botCount, subscription] = await Promise.all([
-      prisma.bot.count({ where: { userId: user.id } }),
-      prisma.subscription.upsert({
-        where: { userId: user.id },
-        create: { userId: user.id, plan: "FREE", status: "ACTIVE" },
-        update: {},
-      }),
-    ]);
-
-    const plan = subscription?.plan ?? "FREE";
-    const limit = plan === "ENTERPRISE" ? 100 : plan === "PRO" ? 3 : 1;
-    if (botCount >= limit) {
+    const botCount = await prisma.bot.count({ where: { userId: user.id } });
+    if (botCount >= MAX_BOTS_PER_USER) {
       return NextResponse.json(
-        { error: `Bot limit reached (${limit}) for your ${plan} plan. Upgrade to build more.` },
+        { error: `You can keep up to ${MAX_BOTS_PER_USER} bots. Delete one you no longer use.` },
         { status: 403 },
       );
     }
 
-    // New bots are durable local drafts until explicitly published to KeeperHub.
-    const workflowId: string | null = null;
+    // New bots start as drafts; they run once a strategy is saved and the bot is turned on.
+    const bot = await prisma.bot.create({ data: { userId: user.id, name } });
 
-    const bot = await prisma.bot.create({
-      data: {
-        userId: user.id,
-        name,
-        keeperhubWorkflowId: workflowId,
-      },
-    });
-
-    return NextResponse.json(decorateBot(bot), { status: 201 });
+    return NextResponse.json(bot, { status: 201 });
   } catch (err: unknown) {
     console.error("POST /api/bots error:", err);
     if (isMissingSchemaColumn(err)) {

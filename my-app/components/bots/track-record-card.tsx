@@ -42,7 +42,7 @@ export default function TrackRecordCard({ botId }: { botId: string }) {
         <div>
           <h2 className="font-semibold">Verified track record</h2>
           <p className="mt-1 max-w-xl text-sm text-[var(--c-dim)]">
-            Scored from KeeperHub runs against real Polymarket resolution — recomputable by anyone, never self-reported.
+            Scored from this bot&rsquo;s run log against Polymarket&rsquo;s on-chain resolution, never self-reported.
           </p>
         </div>
         {data.listed ? (

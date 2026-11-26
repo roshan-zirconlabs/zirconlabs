@@ -15,7 +15,6 @@ import {
   isSavingAtom,
   nodesAtom,
   selectedNodeIdAtom,
-  workflowIdAtom,
   workflowNameAtom,
 } from "@/components/workflow/store";
 import { autoLayout } from "@/components/workflow/auto-layout";
@@ -23,8 +22,8 @@ import NodeConfigPanel from "@/components/workflow/node-config-panel";
 import ActivationControl from "@/components/bots/activation-control";
 import {
   ensureAddPlaceholders,
-  fromKeeperhubGraph,
-  toKeeperhubGraph,
+  fromSavedGraph,
+  toSavedGraph,
 } from "@/components/workflow/serialize";
 import { canvasFromStrategy, strategyFromCanvas } from "@/lib/workflow/canvas-strategy";
 import { strategySpec } from "@/lib/workflow/strategy";
@@ -62,7 +61,6 @@ function BotEditorInner({
   const [, setSelectedId] = useAtom(selectedNodeIdAtom);
   const [dirty, setDirty] = useAtom(isDirtyAtom);
   const [saving, setSaving] = useAtom(isSavingAtom);
-  const [workflowId, setWfId] = useAtom(workflowIdAtom);
   const [name, setName] = useAtom(workflowNameAtom);
 
   const [loading, setLoading] = useState(true);
@@ -80,16 +78,15 @@ function BotEditorInner({
         }
         const json = await res.json();
         if (!alive) return;
-        setWfId(json.bot?.keeperhubWorkflowId ?? null);
         setBotStatus(json.bot?.status ?? "INACTIVE");
         setName(json.name ?? json.bot?.name ?? "");
 
         // A Polymarket bot is defined by its strategy record: render the
         // friendly Polymarket blocks from it. Any other bot is a free-form
-        // graph of hosted KeeperHub actions.
+        // draft graph.
         const spec = strategySpec.safeParse(json.bot?.strategy);
         const graph = spec.success ? canvasFromStrategy(spec.data) : { nodes: json.nodes, edges: json.edges };
-        const decoded = fromKeeperhubGraph(graph.nodes, graph.edges);
+        const decoded = fromSavedGraph(graph.nodes, graph.edges);
         const withAdds = ensureAddPlaceholders(decoded.nodes, decoded.edges);
         const laidOut = autoLayout(withAdds.nodes, withAdds.edges);
         setNodes(laidOut);
@@ -117,8 +114,8 @@ function BotEditorInner({
     setSaving(true);
     try {
       // A canvas that contains a Polymarket "Place order" block IS a strategy:
-      // save it through the same pipeline the guided builder uses, so it
-      // compiles to a real, executing KeeperHub workflow (paper or live).
+      // save it through the same route the guided builder uses, so it becomes
+      // the bot's strategy (paper or live).
       const spec = strategyFromCanvas(nodes);
       const res = spec
         ? await fetch(`/api/bots/${botId}/strategy`, {
@@ -129,7 +126,7 @@ function BotEditorInner({
         : await fetch(`/api/bots/${botId}/workflow`, {
             method: "PATCH",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ ...toKeeperhubGraph(nodes, edges), name }),
+            body: JSON.stringify({ ...toSavedGraph(nodes, edges), name }),
           });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -149,7 +146,7 @@ function BotEditorInner({
   }, [botId, nodes, edges, name, setSaving, setDirty, toast]);
 
   const runOnce = useCallback(async () => {
-    if (!confirm("Run this published workflow on KeeperHub? Configured actions may spend real organization funds.")) return;
+    if (!confirm("Run this bot now? In real-money mode it can place an order from your trading wallet.")) return;
     setRunning(true);
     try {
       const res = await fetch(`/api/bots/${botId}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmLive: true }) });
@@ -157,7 +154,7 @@ function BotEditorInner({
       if (!res.ok) {
         throw new Error(json?.error || json?.message || "Run failed");
       }
-      toast({ variant: "success", title: "Trigger fired" });
+      toast({ variant: "success", title: json?.outcome === "TRADED" ? "Trade placed" : json?.outcome === "DUPLICATE" ? "Already traded this window" : "Checked: no trade this time", description: json?.message });
     } catch (e) {
       toast({
         variant: "error",
@@ -229,20 +226,16 @@ function BotEditorInner({
           <Link href="/markets" target="_blank" className={iconBtn}>
             Markets <ExternalLink className="h-3 w-3" />
           </Link>
-          <button onClick={runOnce} disabled={dirty || running || !workflowId} title={dirty ? "Save first" : "Fire the trigger once"} className={iconBtn}>
+          <button onClick={runOnce} disabled={dirty || running || botStatus !== "ACTIVE"} title={dirty ? "Save first" : botStatus !== "ACTIVE" ? "Turn the bot on first" : "Evaluate the bot once now"} className={iconBtn}>
             {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
             Test run
           </button>
           <ActivationControl
             botId={botId}
             status={botStatus}
-            workflowId={workflowId}
             disabled={dirty || saving}
             compact
-            onChanged={(next) => {
-              setBotStatus(next.status);
-              setWfId(next.keeperhubWorkflowId);
-            }}
+            onChanged={(next) => setBotStatus(next.status)}
           />
           <Button variant="primary" size="sm" onClick={save} disabled={saving || !dirty}>
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}

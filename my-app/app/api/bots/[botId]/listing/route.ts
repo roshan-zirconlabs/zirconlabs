@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { KeeperhubClient } from "@/lib/keeperhub";
-import { platformKeeperhubKey } from "@/lib/keeperhub-connection";
 import { computeTrackRecord, type TrackRecord } from "@/lib/track-record";
+import { executionsForBot } from "@/lib/run-history";
 
 const headers = { "Cache-Control": "private, no-store" };
 
-async function recordFor(workflowId: string | null): Promise<TrackRecord | null> {
-  const key = platformKeeperhubKey();
-  if (!workflowId || workflowId.startsWith("local_") || !key) return null;
-  const raw = (await new KeeperhubClient(key).getExecutions(workflowId)) as unknown as Record<string, unknown>[];
-  return computeTrackRecord(raw);
+async function recordFor(bot: { id: string }): Promise<TrackRecord | null> {
+  return computeTrackRecord(await executionsForBot(bot.id));
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ botId: string }> }) {
@@ -22,12 +18,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ bot
 
   let record: TrackRecord | null = null;
   try {
-    record = await recordFor(bot.keeperhubWorkflowId);
+    record = await recordFor(bot);
   } catch {
     /* record stays null; the card renders an unavailable state */
   }
   return NextResponse.json(
-    { listed: bot.listedAt !== null, listedAt: bot.listedAt, workflowId: bot.keeperhubWorkflowId, record },
+    { listed: bot.listedAt !== null, listedAt: bot.listedAt, workflowId: bot.id, record },
     { headers },
   );
 }
@@ -49,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bot
     return NextResponse.json({ listed: false }, { headers });
   }
 
-  const record = await recordFor(bot.keeperhubWorkflowId).catch(() => null);
+  const record = await recordFor(bot).catch(() => null);
   if (!record) return NextResponse.json({ error: "Strategy has no on-platform history to verify." }, { status: 400 });
   if (record.resolved < 1) {
     return NextResponse.json({ error: "A strategy needs at least one resolved trade before it can be listed.", record }, { status: 422 });

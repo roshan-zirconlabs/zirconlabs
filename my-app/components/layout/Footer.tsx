@@ -20,7 +20,7 @@ export default function Footer() {
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-7 sm:flex-row">
         <div className="flex items-center gap-2.5 text-sm text-[var(--c-faint)]">
           <OrbitMark className="h-6 w-6" />
-          <span>© {new Date().getFullYear()} Zircon Labs · Built on KeeperHub</span>
+          <span>© {new Date().getFullYear()} PolyTrade</span>
         </div>
         <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
           {LINKS.map(([label, href]) => (

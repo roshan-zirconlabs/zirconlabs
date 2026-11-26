@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { keeperhubForUser } from "@/lib/keeperhub-connection";
 
 const headers = { "Cache-Control": "private, no-store" };
 const GAMMA = "https://gamma-api.polymarket.com";
@@ -29,33 +28,6 @@ async function resolveMarkets(slugs: string[]): Promise<Map<string, Resolution>>
     } catch { /* Unresolvable market: trade stays OPEN rather than guessed at. */ }
   }));
   return out;
-}
-
-/**
- * Classifies one KeeperHub execution record without a raw status vocabulary
- * leaking through: a workflow can succeed and still not trade (the Condition
- * gate said no), which is not the same thing as failing.
- */
-function classifyRun(e: Record<string, unknown>): { kind: "TRADED" | "SAT_OUT" | "FAILED"; reason: string | null; marketSlug: string | null; direction: string | null; amount: number | null; price: number | null } {
-  const error = typeof e.error === "string" ? e.error : null;
-  const lastNode = typeof e.lastSuccessfulNodeName === "string" ? e.lastSuccessfulNodeName : "";
-  const output = e.output as { data?: Record<string, unknown> } | null | undefined;
-  const data = output?.data;
-
-  if (error) {
-    return { kind: "FAILED", reason: error.slice(0, 240), marketSlug: null, direction: null, amount: null, price: null };
-  }
-  if (lastNode === "Place Polymarket order" && data && typeof data === "object") {
-    return {
-      kind: "TRADED",
-      reason: typeof data.reason === "string" ? data.reason : null,
-      marketSlug: typeof data.marketSlug === "string" ? data.marketSlug : null,
-      direction: typeof data.direction === "string" ? data.direction : null,
-      amount: typeof data.amount === "number" ? data.amount : null,
-      price: typeof data.price === "number" ? data.price : null,
-    };
-  }
-  return { kind: "SAT_OUT", reason: "The rule did not produce a tradable signal this run.", marketSlug: null, direction: null, amount: null, price: null };
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ botId: string }> }) {
@@ -103,24 +75,20 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ bot
     liveCount, paperCount,
   };
 
-  // The run log: every KeeperHub execution, classified — trades, sat-outs and
-  // failures alike, so "what failed and why" is answerable from this page.
-  let runs: Array<ReturnType<typeof classifyRun> & { startedAt: string | null; durationMs: number | null }> = [];
-  let runsWarning: string | undefined;
-  if (bot.keeperhubWorkflowId && !bot.keeperhubWorkflowId.startsWith("local_")) {
-    try {
-      const { client } = await keeperhubForUser(session.user.id);
-      // getExecutions()'s declared type is a normalized view, but the objects
-      // it returns still carry KeeperHub's raw fields at runtime — read those
-      // directly rather than adding a second client method for the same call.
-      const raw = (await client.getExecutions(bot.keeperhubWorkflowId)) as unknown as Record<string, unknown>[];
-      runs = raw.slice(0, 40).map(e => ({
-        ...classifyRun(e),
-        startedAt: typeof e.startedAt === "string" ? e.startedAt : null,
-        durationMs: typeof e.duration === "string" ? Number(e.duration) : (typeof e.duration === "number" ? e.duration : null),
-      }));
-    } catch { runsWarning = "Run history is unavailable right now."; }
-  }
+  // The run log: every evaluation, classified — trades, sat-outs and failures
+  // alike, so "what failed and why" is answerable from this page.
+  const local = await prisma.botRun.findMany({ where: { botId: bot.id }, orderBy: { startedAt: "desc" }, take: 40 });
+  const runs = local.map(r => ({
+    kind: r.outcome === "TRADED" ? "TRADED" : r.outcome === "FAILED" ? "FAILED" : "SAT_OUT",
+    reason: r.reason,
+    marketSlug: r.marketSlug,
+    direction: r.direction,
+    amount: r.amount,
+    price: r.price,
+    startedAt: r.startedAt.toISOString(),
+    durationMs: r.durationMs,
+  }));
+  const runsWarning: string | undefined = undefined;
 
   return NextResponse.json({ stats, trades: tradeRows, runs, runsWarning }, { headers });
 }

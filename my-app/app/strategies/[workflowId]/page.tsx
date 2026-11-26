@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { KeeperhubClient } from "@/lib/keeperhub";
-import { platformKeeperhubKey } from "@/lib/keeperhub-connection";
+import { executionsForBot, findListedBot } from "@/lib/run-history";
 import { computeTrackRecord, toPublicRecord, type TrackRecord } from "@/lib/track-record";
 import { PageShell } from "@/components/ui/page";
 import TrackRecordView from "@/components/strategies/track-record-view";
@@ -11,21 +9,14 @@ export const dynamic = "force-dynamic";
 
 export default async function StrategyPage({ params }: { params: Promise<{ workflowId: string }> }) {
   const { workflowId } = await params;
-  const bot = await prisma.bot.findFirst({
-    where: { keeperhubWorkflowId: workflowId, listedAt: { not: null } },
-    select: { name: true, listedAt: true },
-  });
+  const bot = await findListedBot(workflowId);
   if (!bot) notFound();
 
-  const key = platformKeeperhubKey();
   let record: TrackRecord | null = null;
-  if (key) {
-    try {
-      const raw = (await new KeeperhubClient(key).getExecutions(workflowId)) as unknown as Record<string, unknown>[];
-      record = toPublicRecord(await computeTrackRecord(raw));
-    } catch {
-      /* record stays null */
-    }
+  try {
+    record = toPublicRecord(await computeTrackRecord(await executionsForBot(bot.id)));
+  } catch {
+    /* record stays null */
   }
 
   return (
@@ -36,7 +27,7 @@ export default async function StrategyPage({ params }: { params: Promise<{ workf
 
       <div className="mt-6 mb-8">
         <h1 className="c-serif text-[clamp(2rem,4vw,3rem)] leading-none text-white">{bot.name}</h1>
-        <p className="c-mono mt-2 text-xs text-[var(--c-faint)]">Workflow {workflowId}</p>
+        <p className="c-mono mt-2 text-xs text-[var(--c-faint)]">Strategy {workflowId}</p>
       </div>
 
       {record ? (
@@ -48,7 +39,7 @@ export default async function StrategyPage({ params }: { params: Promise<{ workf
       <section className="c-panel mt-6 p-6">
         <h2 className="font-semibold">Verify it yourself</h2>
         <p className="mt-1 text-sm text-[var(--c-dim)]">
-          Settled trades come with proof (KeeperHub execution ids and on-chain condition ids) anyone can recompute — no
+          Settled trades come with proof (on-chain condition ids) anyone can recompute — no
           trust required. Open positions are withheld until their market resolves.
         </p>
         <code className="c-mono mt-4 block overflow-x-auto rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-[var(--c-pink)]">

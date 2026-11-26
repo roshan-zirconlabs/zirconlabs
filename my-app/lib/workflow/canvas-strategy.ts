@@ -8,8 +8,8 @@
  * "Place order" block carries the whole strategy, so the canvas can be built
  * from a spec and a spec can be read back from the canvas.
  *
- * Anything that isn't a Zircon Polymarket bot (a free-form graph of hosted
- * KeeperHub actions) is left untouched — `strategyFromCanvas` returns null and
+ * Anything that isn't a PolyTrade Polymarket bot (a free-form draft graph)
+ * is left untouched — `strategyFromCanvas` returns null and
  * the caller saves the raw graph as before.
  */
 import { strategySpec, type StrategySpec } from "./strategy";

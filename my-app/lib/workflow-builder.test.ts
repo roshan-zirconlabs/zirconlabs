@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { autoLayout } from "../components/workflow/auto-layout.ts";
 import {
-  toKeeperhubGraph,
-  fromKeeperhubGraph,
+  toSavedGraph,
+  fromSavedGraph,
   ensureAddPlaceholders,
   seedEmptyGraph,
 } from "../components/workflow/serialize.ts";
@@ -65,7 +65,7 @@ test("autoLayout prevents node collision on branching workflows", () => {
   }
 });
 
-test("toKeeperhubGraph strips add placeholders and preserves action configs", () => {
+test("toSavedGraph strips add placeholders and preserves action configs", () => {
   const nodes: WorkflowNode[] = [
     {
       id: "trig-1",
@@ -96,9 +96,9 @@ test("toKeeperhubGraph strips add placeholders and preserves action configs", ()
     { id: "e2", source: "act-1", target: "add-placeholder" },
   ];
 
-  const serialized = toKeeperhubGraph(nodes, edges);
+  const serialized = toSavedGraph(nodes, edges);
 
-  // Add node and its edge should be excluded from KeeperHub graph
+  // Add node and its edge should be excluded from the saved graph
   assert.equal(serialized.nodes.length, 2);
   assert.equal(serialized.edges.length, 1);
   assert.equal(serialized.nodes[1].id, "act-1");
@@ -108,7 +108,7 @@ test("toKeeperhubGraph strips add placeholders and preserves action configs", ()
   assert.equal(actConfig.amount, 10);
 });
 
-test("fromKeeperhubGraph restores nodes and ignores unconfigured dummy actions", () => {
+test("fromSavedGraph restores nodes and ignores unconfigured dummy actions", () => {
   const rawNodes = [
     {
       id: "t1",
@@ -139,7 +139,7 @@ test("fromKeeperhubGraph restores nodes and ignores unconfigured dummy actions",
     { id: "e2", source: "t1", target: "valid-action" },
   ];
 
-  const restored = fromKeeperhubGraph(rawNodes, rawEdges);
+  const restored = fromSavedGraph(rawNodes, rawEdges);
 
   assert.equal(restored.nodes.length, 2); // unconfigured dummy should be dropped
   assert.equal(restored.edges.length, 1);
@@ -182,8 +182,8 @@ test("ensureAddPlaceholders adds an interactive add node to leaf action nodes", 
   assert.equal(addEdge?.source, "step1");
 });
 
-test("fromKeeperhubGraph keeps built-in KeeperHub actions that carry only an actionType", () => {
-  const { nodes, edges } = fromKeeperhubGraph(
+test("fromSavedGraph keeps built-in actions that carry only an actionType", () => {
+  const { nodes, edges } = fromSavedGraph(
     [
       { id: "t", type: "trigger", data: { type: "trigger", config: { triggerType: "Schedule" } } },
       { id: "signal", type: "action", data: { type: "action", label: "Signal", config: { actionType: "HTTP Request" } } },

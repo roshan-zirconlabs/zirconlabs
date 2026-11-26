@@ -76,7 +76,7 @@ export default function TrackRecordView({ record, showProof }: { record: TrackRe
                 </thead>
                 <tbody>
                   {record.proof.map((t, i) => (
-                    <tr key={t.executionId ?? i} className="border-t border-white/5">
+                    <tr key={t.runId ?? i} className="border-t border-white/5">
                       <td className="c-mono max-w-[220px] truncate p-3 text-xs text-[var(--c-dim)]">{t.marketSlug}</td>
                       <td className="p-3 text-white">{t.direction}</td>
                       <td className="p-3">{outcome(t)}</td>

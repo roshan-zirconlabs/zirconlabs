@@ -67,7 +67,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
 
           <p className="mt-8 flex items-start gap-2 border-t border-white/10 pt-6 text-xs leading-relaxed text-[var(--c-faint)]">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--c-pink)]" />
-            Zircon never asks for your wallet seed phrase or private key. Connecting KeeperHub is a separate, explicit step.
+            PolyTrade never asks for your wallet seed phrase or private key.
           </p>
         </div>
       </div>

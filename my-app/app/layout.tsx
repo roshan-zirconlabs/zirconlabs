@@ -17,15 +17,15 @@ const instrument = Instrument_Serif({
   display: "swap",
 });
 
-const description = "Turn a chart signal into a guarded, traceable Polymarket trading bot. Built on KeeperHub.";
+const description = "Turn a chart signal into a guarded, traceable Polymarket trading bot.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.zirconlabs.org"),
-  title: "Zircon Labs",
-  applicationName: "Zircon Labs",
+  metadataBase: new URL("https://polytrade.fi"),
+  title: "PolyTrade",
+  applicationName: "PolyTrade",
   description,
-  openGraph: { siteName: "Zircon Labs", title: "Zircon Labs", description, type: "website" },
-  twitter: { card: "summary", title: "Zircon Labs", description },
+  openGraph: { siteName: "PolyTrade", title: "PolyTrade", description, type: "website" },
+  twitter: { card: "summary", title: "PolyTrade", description },
 };
 
 export const viewport: Viewport = {

@@ -443,7 +443,7 @@ input[type="radio"] {
 }
 
 /* Workflow canvas (React Flow) — themed through its CSS variables */
-.zircon-flow .react-flow {
+.pt-flow .react-flow {
   --xy-background-color: transparent;
   --xy-edge-stroke: rgba(247, 168, 207, 0.5);
   --xy-edge-stroke-selected: #f7a8cf;
@@ -453,14 +453,14 @@ input[type="radio"] {
   --xy-controls-button-color: #f5f0ff;
   --xy-controls-button-border-color: rgba(255, 255, 255, 0.1);
 }
-.zircon-flow .react-flow,
-.zircon-flow .react-flow__background {
+.pt-flow .react-flow,
+.pt-flow .react-flow__background {
   background-color: transparent;
 }
-.zircon-flow .react-flow__edge-path {
+.pt-flow .react-flow__edge-path {
   stroke: rgba(247, 168, 207, 0.5);
   stroke-width: 1.5;
 }
-.zircon-flow .react-flow__edge.selected .react-flow__edge-path {
+.pt-flow .react-flow__edge.selected .react-flow__edge-path {
   stroke: #f7a8cf;
 }

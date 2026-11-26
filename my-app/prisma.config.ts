@@ -3,6 +3,15 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+/** Applies DATABASE_SCHEMA to CLI connections so migrations land in the schema the app queries. */
+function withSchema(url: string | undefined): string | undefined {
+  const schema = process.env["DATABASE_SCHEMA"]?.trim();
+  if (!url || !schema) return url;
+  const parsed = new URL(url);
+  parsed.searchParams.set("schema", schema);
+  return parsed.toString();
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
@@ -11,6 +20,6 @@ export default defineConfig({
   datasource: {
     // CLI/migrations can use a direct (or session-pooler) connection while
     // application traffic uses the transaction pooler on Vercel.
-    url: process.env["DIRECT_URL"] || process.env["DATABASE_URL"],
+    url: withSchema(process.env["DIRECT_URL"] || process.env["DATABASE_URL"]),
   },
 });

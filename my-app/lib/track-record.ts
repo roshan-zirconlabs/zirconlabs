@@ -1,7 +1,6 @@
-// A strategy's track record, recomputable by anyone from two public sources:
-// KeeperHub's execution records (the trades it took) and Polymarket's on-chain
-// resolution (whether each was right). Nothing here reads Zircon's own database,
-// so the numbers are verifiable, not self-reported.
+// A strategy's track record: the trades in the bot's run log, scored against
+// Polymarket's on-chain resolution (whether each was right). The outcome of
+// every trade comes from Polymarket, never from PolyTrade's own bookkeeping.
 
 const GAMMA = "https://gamma-api.polymarket.com";
 
@@ -9,8 +8,7 @@ type Winner = "UP" | "DOWN" | null;
 type MarketResolution = { closed: boolean; winner: Winner; conditionId: string | null };
 
 export type VerifiedTrade = {
-  executionId: string | null;
-  txHash: string | null;
+  runId: string | null;
   marketSlug: string;
   direction: "UP" | "DOWN";
   amountUsd: number;
@@ -87,22 +85,20 @@ async function resolveMarkets(slugs: string[]): Promise<Map<string, MarketResolu
   return out;
 }
 
-type Traded = Pick<VerifiedTrade, "executionId" | "txHash" | "marketSlug" | "direction" | "amountUsd" | "shares" | "paper"> & {
+type Traded = Pick<VerifiedTrade, "runId" | "marketSlug" | "direction" | "amountUsd" | "shares" | "paper"> & {
   at: string | null;
 };
 
 function tradedFromExecution(e: Record<string, unknown>): Traded | null {
-  if ((typeof e.error === "string" && e.error) || e.lastSuccessfulNodeName !== "Place Polymarket order") return null;
+  if ((typeof e.error === "string" && e.error) || e.traded !== true) return null;
   const data = (e.output as { data?: Record<string, unknown> } | undefined)?.data;
   if (!data) return null;
   const { marketSlug, direction, amount, shares, paper } = data;
   if (typeof marketSlug !== "string" || (direction !== "UP" && direction !== "DOWN") || typeof amount !== "number" || typeof shares !== "number") {
     return null;
   }
-  const hashes = e.transactionHashes as Array<{ hash?: string }> | undefined;
   return {
-    executionId: typeof e.executionId === "string" ? e.executionId : typeof e.id === "string" ? e.id : null,
-    txHash: hashes?.[0]?.hash ?? null,
+    runId: typeof e.id === "string" ? e.id : null,
     marketSlug,
     direction,
     amountUsd: amount,
@@ -148,8 +144,7 @@ export async function computeTrackRecord(executions: Record<string, unknown>[]):
       open++;
     }
     return {
-      executionId: t.executionId,
-      txHash: t.txHash,
+      runId: t.runId,
       marketSlug: t.marketSlug,
       direction: t.direction,
       amountUsd: t.amountUsd,

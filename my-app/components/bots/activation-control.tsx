@@ -8,20 +8,19 @@ import { activationAction } from "@/lib/bot-activation";
 type Props = {
   botId: string;
   status: string;
-  workflowId: string | null;
   disabled?: boolean;
-  onChanged?: (next: { status: string; keeperhubWorkflowId: string | null; editorUrl: string | null; webhookUrl: string | null }) => void;
+  onChanged?: (next: { status: string; webhookUrl: string | null }) => void;
   compact?: boolean;
 };
 
-export default function ActivationControl({ botId, status, workflowId, disabled = false, onChanged, compact = false }: Props) {
+export default function ActivationControl({ botId, status, disabled = false, onChanged, compact = false }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const action = activationAction(status, workflowId);
+  const action = activationAction(status);
 
   async function toggle() {
     if (busy || disabled) return;
-    if (action.active && !window.confirm("Publish and activate this workflow? Its KeeperHub actions may spend real organization funds when triggered.")) return;
+    if (action.active && !window.confirm("Turn this bot on? In real-money mode it places orders from your trading wallet, within the limits you set.")) return;
     setBusy(true);
     setError(null);
     try {
@@ -31,15 +30,10 @@ export default function ActivationControl({ botId, status, workflowId, disabled 
         body: JSON.stringify({ active: action.active }),
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || "KeeperHub could not update this workflow.");
-      onChanged?.({
-        status: body.status,
-        keeperhubWorkflowId: body.keeperhubWorkflowId ?? workflowId,
-        editorUrl: body.editorUrl ?? null,
-        webhookUrl: body.webhookUrl ?? null,
-      });
+      if (!response.ok) throw new Error(body.error || "This bot could not be updated.");
+      onChanged?.({ status: body.status, webhookUrl: body.webhookUrl ?? null });
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "KeeperHub could not update this workflow.");
+      setError(requestError instanceof Error ? requestError.message : "This bot could not be updated.");
     } finally {
       setBusy(false);
     }
@@ -53,12 +47,12 @@ export default function ActivationControl({ botId, status, workflowId, disabled 
         size={compact ? "sm" : "md"}
         onClick={() => void toggle()}
         disabled={busy || disabled}
-        title={disabled ? "Save the workflow before changing activation." : action.description}
+        title={disabled ? "Save a strategy before changing activation." : action.description}
       >
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : action.active ? <UploadCloud className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
         {busy ? "Updating…" : action.label}
       </Button>
-      {!compact ? <p className="text-xs text-slate-500">{disabled ? "Save your workflow before publishing or pausing it." : action.description}</p> : null}
+      {!compact ? <p className="text-xs text-slate-500">{disabled ? "Save a strategy before turning this bot on." : action.description}</p> : null}
       {error ? <p role="alert" className="max-w-sm text-xs leading-5 text-rose-700">{error}</p> : null}
     </div>
   );

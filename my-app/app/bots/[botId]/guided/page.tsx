@@ -16,7 +16,7 @@ export default function GuidedSetupPage({ params }: { params: Promise<{ botId: s
   const { status } = useSession();
   const router = useRouter();
 
-  const [statusOverride, setStatusOverride] = useState<{ status: string; keeperhubWorkflowId: string | null } | null>(null);
+  const [statusOverride, setStatusOverride] = useState<{ status: string } | null>(null);
 
   const query = useQuery({
     queryKey: ["bot-strategy", botId],
@@ -25,7 +25,7 @@ export default function GuidedSetupPage({ params }: { params: Promise<{ botId: s
       const res = await fetch(`/api/bots/${botId}/strategy`);
       if (!res.ok) throw new Error("This bot could not be loaded.");
       return res.json() as Promise<{
-        bot: { name: string; status: string; keeperhubWorkflowId: string | null };
+        bot: { name: string; status: string };
         strategy: unknown | null;
       }>;
     },
@@ -70,10 +70,9 @@ export default function GuidedSetupPage({ params }: { params: Promise<{ botId: s
             <ActivationControl
               botId={botId}
               status={bot.status}
-              workflowId={bot.keeperhubWorkflowId}
               disabled={!hasStrategy}
               compact
-              onChanged={(next) => setStatusOverride({ status: next.status, keeperhubWorkflowId: next.keeperhubWorkflowId })}
+              onChanged={(next) => setStatusOverride({ status: next.status })}
             />
           </>
         }

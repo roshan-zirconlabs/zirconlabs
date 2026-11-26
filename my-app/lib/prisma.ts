@@ -26,7 +26,10 @@ function createPrismaClient(): PrismaClient {
     if (process.env.NODE_ENV !== "production") {
       globalForPrisma.pool = pool;
     }
-    const adapter = new PrismaPg(pool);
+    // DATABASE_SCHEMA lets this app share a Postgres database with another
+    // deployment without touching its tables (e.g. "polytrade").
+    const schema = process.env.DATABASE_SCHEMA?.trim() || undefined;
+    const adapter = new PrismaPg(pool, schema ? { schema } : undefined);
     return new PrismaClient({ adapter });
   } catch (err) {
     console.error("Failed to initialize PrismaClient with PrismaPg adapter:", err);

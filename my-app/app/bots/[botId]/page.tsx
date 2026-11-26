@@ -1,11 +1,12 @@
 "use client";
 
+import TradingViewChart from "@/components/charts/tradingview-chart";
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { Check, Copy, ExternalLink, ListChecks, SlidersHorizontal, Trash2, Webhook } from "lucide-react";
+import { Check, Copy, ListChecks, SlidersHorizontal, Trash2, Webhook } from "lucide-react";
 import ExecutionAuditTrail from "@/components/bots/execution-audit-trail";
 import TrackRecordCard from "@/components/bots/track-record-card";
 import ActivationControl from "@/components/bots/activation-control";
@@ -17,10 +18,8 @@ type BotResponse = {
   id: string;
   name: string;
   status: string;
-  keeperhubWorkflowId: string | null;
-  editorUrl: string | null;
   webhookUrl: string | null;
-  strategy: { mode?: "paper" | "live"; source?: "schedule" | "webhook" } | null;
+  strategy: { mode?: "paper" | "live"; source?: "schedule" | "webhook"; asset?: string; timeframe?: string } | null;
   _count?: { trades: number };
 };
 
@@ -51,7 +50,7 @@ export default function BotDetailPage({ params }: { params: Promise<{ botId: str
   }, [status, query.isError, router]);
 
   async function deleteBot() {
-    if (!confirm("Delete this bot? Its linked KeeperHub workflow will also be removed.")) return;
+    if (!confirm("Delete this bot and its history?")) return;
     const res = await fetch(`/api/bots/${botId}`, { method: "DELETE" });
     if (res.ok) {
       await client.invalidateQueries({ queryKey: ["bots"] });
@@ -80,7 +79,7 @@ export default function BotDetailPage({ params }: { params: Promise<{ botId: str
     );
   }
 
-  const { editorUrl, webhookUrl } = bot;
+  const { webhookUrl } = bot;
   const mode = bot.strategy?.mode ?? null;
   const isWebhookSourced = bot.strategy?.source === "webhook";
 
@@ -99,7 +98,9 @@ export default function BotDetailPage({ params }: { params: Promise<{ botId: str
               {mode && <StatusBadge tone={mode === "live" ? "live" : "practice"}>{mode === "live" ? "Live · real money" : "Practice"}</StatusBadge>}
             </div>
             <h1 className="c-serif mt-3 break-words text-[clamp(2.25rem,5vw,3.75rem)] leading-none text-white">{bot.name}</h1>
-            <p className="c-mono mt-2 truncate text-xs text-[var(--c-faint)]">Workflow {bot.keeperhubWorkflowId ?? "not published yet"}</p>
+            <p className="c-mono mt-2 truncate text-xs text-[var(--c-faint)]">
+              {isWebhookSourced ? "Runs when your alert arrives" : bot.strategy ? "Runs on its market schedule" : "No strategy yet"}
+            </p>
           </div>
         </div>
 
@@ -107,7 +108,6 @@ export default function BotDetailPage({ params }: { params: Promise<{ botId: str
           <ActivationControl
             botId={botId}
             status={bot.status}
-            workflowId={bot.keeperhubWorkflowId}
             compact
             onChanged={(next) => {
               setPatch((current) => ({ ...current, ...next }));
@@ -120,11 +120,6 @@ export default function BotDetailPage({ params }: { params: Promise<{ botId: str
           <Link href={`/bots/${botId}/edit`} className="c-btn-ghost c-btn-sm">
             <SlidersHorizontal className="h-4 w-4" /> Visual editor
           </Link>
-          {editorUrl && (
-            <a href={editorUrl} target="_blank" rel="noreferrer" className="c-btn-ghost c-btn-sm">
-              <ExternalLink className="h-4 w-4" /> KeeperHub
-            </a>
-          )}
           <button type="button" onClick={deleteBot} aria-label="Delete bot" title="Delete bot" className="c-btn-danger c-btn-sm !px-2.5">
             <Trash2 className="h-4 w-4" />
           </button>
@@ -138,13 +133,15 @@ export default function BotDetailPage({ params }: { params: Promise<{ botId: str
             <h2 className="font-semibold">Your TradingView alert URL</h2>
           </div>
           <p className="mt-2 text-sm text-[var(--c-dim)]">
-            Paste this into your TradingView alert&rsquo;s webhook field, with the message body{" "}
-            <code className="c-mono rounded-md bg-white/10 px-1.5 py-0.5 text-xs">{'{"action": "{{strategy.order.action}}"}'}</code>.
-            {!bot.keeperhubWorkflowId && " It only exists once this bot is published — turn it on to generate it."}
+            Paste this into your TradingView alert&rsquo;s webhook field. For an alert on a strategy, set the message to{" "}
+            <code className="c-mono rounded-md bg-white/10 px-1.5 py-0.5 text-xs">{'{"action": "{{strategy.order.action}}"}'}</code>;
+            for an indicator alert, write <code className="c-mono rounded-md bg-white/10 px-1.5 py-0.5 text-xs">buy</code> or{" "}
+            <code className="c-mono rounded-md bg-white/10 px-1.5 py-0.5 text-xs">sell</code>.
+            {bot.status !== "ACTIVE" && " Alerts are ignored while the bot is paused."}
           </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <code className="c-mono min-w-0 flex-1 select-all truncate rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-[var(--c-pink)]">
-              {webhookUrl || "Not published yet"}
+              {webhookUrl || "Save an alert strategy to get your URL"}
             </code>
             {webhookUrl && (
               <button type="button" onClick={() => copy(webhookUrl)} className="c-btn-ghost">
@@ -153,6 +150,16 @@ export default function BotDetailPage({ params }: { params: Promise<{ botId: str
               </button>
             )}
           </div>
+        </section>
+      )}
+
+      {bot.strategy?.asset && (
+        <section className="c-panel mb-6 p-6">
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-semibold">{bot.strategy.asset} chart · {bot.strategy.timeframe}</h2>
+            <p className="text-xs text-[var(--c-faint)]">Add your own indicators. Polymarket settles these markets on Chainlink&rsquo;s price.</p>
+          </div>
+          <TradingViewChart asset={bot.strategy.asset} timeframe={bot.strategy.timeframe ?? "15m"} />
         </section>
       )}
 

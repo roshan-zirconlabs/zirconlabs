@@ -1,23 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { keeperhub } from "@/lib/keeperhub";
-import { keeperhubForUser } from "@/lib/keeperhub-connection";
+import { strategySpec } from "@/lib/workflow/strategy";
+import { alertUrl } from "@/lib/runner/hosting";
 
-function decorateBot<T extends { keeperhubWorkflowId: string | null }>(b: T) {
-  return {
-    ...b,
-    editorUrl: b.keeperhubWorkflowId
-      ? keeperhub.editorUrl(b.keeperhubWorkflowId)
-      : null,
-    webhookUrl: b.keeperhubWorkflowId
-      ? keeperhub.webhookUrl(b.keeperhubWorkflowId)
-      : null,
-  };
+function decorateBot<T extends { id: string; strategy: unknown }>(b: T, origin: string) {
+  const spec = strategySpec.safeParse(b.strategy);
+  // An alert bot's URL is stable from the moment its strategy is saved, so it
+  // can be pasted into TradingView before the bot is switched on.
+  return { ...b, webhookUrl: spec.success && spec.data.source === "webhook" ? alertUrl(b.id, origin) : null };
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ botId: string }> },
 ) {
   try {
@@ -45,7 +40,7 @@ export async function GET(
 
     if (!bot) return NextResponse.json({ error: "Bot not found" }, { status: 404 });
 
-    return NextResponse.json(decorateBot(bot));
+    return NextResponse.json(decorateBot(bot, req.nextUrl.origin));
   } catch (err: unknown) {
     console.error("GET /api/bots/[botId] error:", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to fetch bot" }, { status: 500 });
@@ -72,10 +67,6 @@ export async function DELETE(
       where: { id: botId, userId: user.id },
     });
     if (!bot) return NextResponse.json({ error: "Bot not found" }, { status: 404 });
-
-    if (bot.keeperhubWorkflowId && !bot.keeperhubWorkflowId.startsWith("local_")) {
-      await (await keeperhubForUser(user.id)).client.deleteWorkflow(bot.keeperhubWorkflowId);
-    }
 
     await prisma.bot.delete({ where: { id: botId } });
 

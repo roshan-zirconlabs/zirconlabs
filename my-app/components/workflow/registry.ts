@@ -1,16 +1,12 @@
 /**
  * Editor definitions for the canvas.
  *
- * Two sources feed the picker:
- *  1. This file's curated Polymarket + logic blocks (the ones that make a bot a
- *     *Polymarket* bot). The "Place order" block is self-sufficient: it carries
- *     the whole strategy (asset, timeframe, rule, stake, price cap and
- *     paper/live mode), so dropping it and saving publishes a real, executing
- *     KeeperHub workflow through the same pipeline the guided builder uses.
- *  2. KeeperHub's live catalog (see hosted-catalog.ts), for any other hosted
- *     action a user wants to compose alongside.
+ * The picker offers only these Polymarket + logic blocks. The "Place order"
+ * block is self-sufficient: it carries the whole strategy (asset, timeframe,
+ * rule, stake, price cap and paper/live mode), so dropping it and saving gives
+ * the bot the same strategy the guided builder would.
  *
- * Nodes are shaped as KeeperHub expects:
+ * Node shape:
  *   trigger: { type: "trigger", data: { type: "trigger", config: { triggerType } } }
  *   action:  { type: "action",  data: { type: "action",  config: { integrationType, actionType, ...fields } } }
  */
@@ -51,8 +47,8 @@ export type ActionDef = {
   description: string;
   category: "polymarket" | "logic" | "io";
   fields: FieldDef[];
-  /** Where this block comes from — Zircon-native canvas blocks vs. the hosted catalog. */
-  source?: "zircon" | "keeperhub";
+  /** Where this block comes from. Only PolyTrade blocks exist. */
+  source?: "polytrade";
 };
 
 const ASSET_OPTIONS = [
@@ -111,7 +107,7 @@ export const ACTIONS: ActionDef[] = [
     description:
       "Resolve the live Polymarket up/down market and evaluate the strategy rule against fresh candles.",
     category: "polymarket",
-    source: "zircon",
+    source: "polytrade",
     fields: [
       { key: "asset", label: "Asset", kind: "select", required: true, defaultValue: "BTC", options: ASSET_OPTIONS },
       {
@@ -144,9 +140,9 @@ export const ACTIONS: ActionDef[] = [
     actionType: "place-order",
     label: "Place order",
     description:
-      "Trade the active Polymarket up/down market. Carries the full strategy — saving publishes a real KeeperHub workflow.",
+      "Trade the active Polymarket up/down market. Carries the full strategy — saving it sets the bot's strategy.",
     category: "polymarket",
-    source: "zircon",
+    source: "polytrade",
     fields: [
       { key: "asset", label: "Asset", kind: "select", required: true, defaultValue: "BTC", options: ASSET_OPTIONS },
       {
@@ -210,7 +206,7 @@ export const ACTIONS: ActionDef[] = [
     label: "Condition",
     description: "Branch on a boolean expression.",
     category: "logic",
-    source: "zircon",
+    source: "polytrade",
     fields: [
       {
         key: "expression",

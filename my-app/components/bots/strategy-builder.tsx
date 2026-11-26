@@ -158,7 +158,7 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "The strategy could not be saved.");
       setDirty(false); setSaved(true);
-      // A 200 with an error means the draft saved but KeeperHub wasn't reached.
+      // A 200 with an error means the strategy saved with a warning.
       if (json.error) setError(json.error);
       onSaved?.(wasActive);
     } catch (e) {
@@ -184,7 +184,7 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
 
       <Step n={1} title="What starts a trade?">
         <div className="space-y-2">
-          <Choice name="source" checked={!alertDriven} onChange={() => set("source", "schedule")} title="A schedule" body="Zircon checks the market on a timer and decides using a rule you pick below." />
+          <Choice name="source" checked={!alertDriven} onChange={() => set("source", "schedule")} title="A schedule" body="PolyTrade checks the market on a timer and decides using a rule you pick below." />
           <Choice name="source" checked={alertDriven} onChange={() => set("source", "webhook")} title="My own alert (TradingView)" body="Your existing TradingView alert decides. Paste one URL into the alert and your strategy trades the prediction market." />
         </div>
       </Step>
@@ -267,7 +267,7 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
                 : "Ready — every run re-checks this"}
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-6 text-xs leading-relaxed text-[var(--c-dim)]">
-              <li>Balance{readiness ? `: $${readiness.balance.toFixed(2)}` : ""} — read on-chain by KeeperHub before each order, not assumed from this screen.</li>
+              <li>Balance{readiness ? `: $${readiness.balance.toFixed(2)}` : ""} — re-checked on-chain before each order, not assumed from this screen.</li>
               <li>If the balance can&rsquo;t cover the stake, that run is skipped — nothing partial is ever sent.</li>
               <li>Live trading must be turned on for your account, separately from this bot.</li>
             </ul>
@@ -298,8 +298,8 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
         {saved && !dirty && (
           <p role="status" className="mt-3 text-xs text-[var(--c-up)]">
             {botStatus === "ACTIVE"
-              ? "This bot is live — the change took effect immediately on KeeperHub. Nothing further to click."
-              : "Saved as a draft. This bot is not running yet — turn it on above to publish it to KeeperHub."}
+              ? "This bot is running — the change takes effect from its next run. Nothing further to click."
+              : "Saved. This bot is not running yet — turn it on above."}
           </p>
         )}
 
@@ -316,7 +316,7 @@ export default function StrategyBuilder({ botId, onSaved }: { botId: string; onS
               <>
                 <p className="mt-2 text-xs text-[var(--c-dim)]">In TradingView, open your alert, tick <span className="font-medium text-white">Webhook URL</span>, and paste this:</p>
                 <code className="c-mono mt-2 block break-all rounded-xl bg-black/30 p-3 text-[11px] text-[var(--c-pink)]">{alertUrl}</code>
-                <p className="mt-3 text-xs text-[var(--c-dim)]">Then set the alert message to exactly this:</p>
+                <p className="mt-3 text-xs text-[var(--c-dim)]">For an alert on a strategy, set the message to exactly this (for an indicator alert, just write <span className="c-mono">buy</span> or <span className="c-mono">sell</span>):</p>
                 <code className="c-mono mt-2 block break-all rounded-xl bg-black/30 p-3 text-[11px] text-[var(--c-pink)]">{"{\"action\": \"{{strategy.order.action}}\"}"}</code>
                 <p className="mt-3 text-xs leading-relaxed text-[var(--c-dim)]">
                   TradingView sends <span className="c-mono">buy</span> or <span className="c-mono">sell</span>; the bot buys UP or DOWN to match.

@@ -12,7 +12,7 @@ function resolvedUp() {
 
 function run(slug: string, direction: "UP" | "DOWN", paper?: boolean) {
   return {
-    id: slug, startedAt: "2026-09-27T00:00:00Z", lastSuccessfulNodeName: "Place Polymarket order",
+    id: slug, startedAt: "2026-09-27T00:00:00Z", traded: true,
     output: { data: { marketSlug: slug, direction, amount: 10, shares: 20, ...(paper === undefined ? {} : { paper }) } },
   };
 }

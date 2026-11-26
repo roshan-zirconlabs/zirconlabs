@@ -44,7 +44,7 @@ export default function Hero() {
       </h1>
 
       <p {...rise(0.45)} className="c-rise mt-8 max-w-xl text-[17px] leading-relaxed text-[var(--c-dim)] sm:text-lg">
-        Zircon turns a chart signal into a bot that trades Polymarket for you — guarded on every order,
+        PolyTrade turns a chart signal into a bot that trades Polymarket for you — guarded on every order,
         traceable on every fill, and still running while you sleep.
       </p>
 

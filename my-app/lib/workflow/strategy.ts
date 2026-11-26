@@ -1,20 +1,13 @@
 import { z } from "zod";
 
 /**
- * A Polymarket strategy a non-technical user can describe, and that compiles to
- * a real KeeperHub workflow. Every field maps to something the runtime can
+ * A Polymarket strategy a non-technical user can describe, and that the
+ * runner (lib/runner) executes. Every field maps to something the runtime can
  * actually evaluate — there are no placeholder options here.
  */
 
 export const ASSETS = ["BTC", "ETH"] as const;
 export const TIMEFRAMES = ["15m", "1h", "4h", "1d"] as const;
-
-export const CRON_FOR_TIMEFRAME: Record<(typeof TIMEFRAMES)[number], string> = {
-  "15m": "*/15 * * * *",
-  "1h": "5 * * * *",
-  "4h": "5 */4 * * *",
-  "1d": "5 0 * * *",
-};
 
 /** Rules are evaluated server-side against live candles; each is self-contained. */
 export const RULES = [

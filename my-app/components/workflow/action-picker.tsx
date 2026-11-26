@@ -4,7 +4,6 @@ import { Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ActionIcon } from "./icons";
 import { ACTIONS, type ActionDef } from "./registry";
-import { useHostedCatalog } from "./hosted-catalog";
 
 type Category = "all" | ActionDef["category"];
 
@@ -12,7 +11,6 @@ const CATEGORIES: { id: Category; label: string }[] = [
   { id: "all", label: "All" },
   { id: "polymarket", label: "Polymarket" },
   { id: "logic", label: "Logic" },
-  { id: "io", label: "Integrations" },
 ];
 
 export default function ActionPicker({
@@ -24,15 +22,11 @@ export default function ActionPicker({
   onClick?: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const catalog = useHostedCatalog();
   const [category, setCategory] = useState<Category>("all");
 
-  // Zircon's native Polymarket + logic blocks come first, then anything else
-  // KeeperHub's live catalog offers (de-duped by id).
-  const all = useMemo(() => {
-    const seen = new Set(ACTIONS.map((a) => a.id));
-    return [...ACTIONS, ...(catalog.data ?? []).filter((a) => !seen.has(a.id))];
-  }, [catalog.data]);
+  // Only PolyTrade's own blocks: every bot stays one trigger, one rule and one
+  // order, which is what the runner can execute and bound.
+  const all = ACTIONS;
 
   const filtered = useMemo(() => {
     return all.filter((a) => {
@@ -51,7 +45,7 @@ export default function ActionPicker({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Choose a KeeperHub action"
+      aria-label="Choose a step"
       className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(3,4,16,0.72)] p-4"
       onClick={onClose}
     >
@@ -70,7 +64,7 @@ export default function ActionPicker({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search actions or indicators..."
+              placeholder="Search steps..."
               aria-label="Search actions"
               className="c-input !pl-10"
             />
@@ -90,8 +84,6 @@ export default function ActionPicker({
         </div>
 
         <div className="flex-1 overflow-y-auto p-2">
-          {catalog.isLoading && <p role="status" className="px-4 pt-3 text-xs text-[var(--c-faint)]">Loading more KeeperHub actions…</p>}
-          {catalog.error && <div role="alert" className="px-4 pt-3 text-xs text-[var(--c-faint)]">More KeeperHub actions are temporarily unavailable. <button onClick={() => catalog.refetch()} className="underline">Retry</button></div>}
           {filtered.length === 0 ? (
             <div className="py-10 text-center text-sm text-[var(--c-faint)]">
               No actions match your search.

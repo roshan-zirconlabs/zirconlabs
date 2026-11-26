@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Choose a valid daily limit and live-trading setting." }, { status: 400 });
   const existing = await prisma.polymarketManagedAccount.findUnique({ where: { userId: session.user.id } });
   if (!existing) return NextResponse.json({ error: "Create your trading account first." }, { status: 404 });
-  if (parsed.data.liveEnabled === true && !liveExecutionConfigured()) return NextResponse.json({ error: "Live trading is not enabled on this deployment yet. Finish the signed CLOB V2 integration test first." }, { status: 409 });
+  if (parsed.data.liveEnabled === true && !liveExecutionConfigured()) return NextResponse.json({ error: "Live trading is not enabled on this deployment yet." }, { status: 409 });
   if (parsed.data.liveEnabled === true && existing.status !== "ACTIVE") return NextResponse.json({ error: "Your account must be active before live trading can be enabled." }, { status: 409 });
   const account = await prisma.polymarketManagedAccount.update({ where: { userId: session.user.id }, data: parsed.data });
   return NextResponse.json({ account: view(account) });

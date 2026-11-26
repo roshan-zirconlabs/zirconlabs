@@ -32,7 +32,7 @@ async function readJson(url: string, fetcher: typeof fetch): Promise<unknown | n
     const res = await fetcher(url, {
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
-      headers: { Accept: "application/json", "User-Agent": "zircon-labs" },
+      headers: { Accept: "application/json", "User-Agent": "polytrade" },
     });
     if (!res.ok) return null;
     return await res.json();

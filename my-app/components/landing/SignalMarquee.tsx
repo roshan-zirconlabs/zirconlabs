@@ -26,7 +26,7 @@ function Row({ hidden }: { hidden?: boolean }) {
 
 export default function SignalMarquee() {
   return (
-    <section aria-label="What Zircon trades" className="relative border-y border-white/10 bg-[rgba(5,7,26,0.66)] py-6">
+    <section aria-label="What PolyTrade trades" className="relative border-y border-white/10 bg-[rgba(5,7,26,0.66)] py-6">
       <div className="c-marquee overflow-hidden">
         <div className="c-marquee-track flex w-max">
           <Row />

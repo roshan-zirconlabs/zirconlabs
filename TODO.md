@@ -32,5 +32,5 @@ Judged on functionality, impact, novelty, UX, open source, business plan. No Pol
 - [ ] Real users on paper mode before the deadline (traction)
 
 ## Later
-- [ ] Replace KeeperHub with our own scheduler (cron tick + BotRun table + webhook endpoint)
-- [ ] Remove canvas / KeeperHub catalog once the new runner ships
+- [x] Replace KeeperHub with our own scheduler (cron tick + BotRun table + webhook endpoint)
+- [x] Remove the KeeperHub catalog (the canvas stays, limited to PolyTrade blocks)
