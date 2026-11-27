@@ -17,6 +17,12 @@ const CLOSE_ONLY_COUNTRIES = new Set([
   "PL", "RU", "SG", "SO", "SK", "SS", "SD", "TW", "TH", "GB", "US", "UM", "VE", "YE", "ZW",
 ]);
 const CLOSE_ONLY_REGIONS = new Set(["CA-BC", "CA-ON", "CA-AB", "CA-QC"]);
+/**
+ * Close-only on polymarket.com but not on the API. The geoblock endpoint
+ * reports the website's rule (blocked: true for Ireland, say), so for these
+ * countries its flag says nothing about API orders.
+ */
+const FRONTEND_ONLY_COUNTRIES = new Set(["IE", "JP", "MT", "NL", "KR"]);
 
 export type RegionStatus =
   | { status: "allowed"; country: string; region: string }
@@ -38,7 +44,8 @@ export function classifyRegion(country: string, region: string, blockedFlag: boo
   const sub = region ? `${c}-${region.toUpperCase()}` : "";
   if (BLOCKED_COUNTRIES.has(c) || BLOCKED_REGIONS.has(sub)) return "blocked";
   if (CLOSE_ONLY_COUNTRIES.has(c) || CLOSE_ONLY_REGIONS.has(sub)) return "close-only";
-  // Polymarket's own flag wins over a list that may lag behind its policy.
+  if (FRONTEND_ONLY_COUNTRIES.has(c)) return "allowed";
+  // Elsewhere Polymarket's own flag wins over a list that may lag its policy.
   return blockedFlag ? "close-only" : "allowed";
 }
 
